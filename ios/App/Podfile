@@ -35,4 +35,40 @@ end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
+
+  require 'fileutils'
+
+  privacy_root = File.expand_path('../../ios-privacy-patches', __dir__)
+  manifests = {
+    'GoogleSignIn'      => 'PrivacyInfo-GoogleSignIn.xcprivacy',
+    'GTMSessionFetcher' => 'PrivacyInfo-GTMSessionFetcher.xcprivacy',
+    'GTMAppAuth'        => 'PrivacyInfo-GTMAppAuth.xcprivacy',
+  }
+
+  installer.pods_project.targets.each do |target|
+    next unless manifests.key?(target.name)
+
+    src = File.join(privacy_root, manifests[target.name])
+    next unless File.exist?(src)
+
+    pod_dir = File.join(installer.sandbox.root, target.name)
+    dst = File.join(pod_dir, 'PrivacyInfo.xcprivacy')
+    FileUtils.mkdir_p(pod_dir)
+    FileUtils.cp(src, dst)
+
+    file_ref = installer.pods_project.files.find { |file| file.path == dst } || installer.pods_project.new_file(dst)
+    target.resources_build_phase.add_file_reference(file_ref, true) rescue nil
+
+    phase_name = '[Flowist] Embed Privacy Manifest'
+    phase = target.shell_script_build_phases.find { |p| p.name == phase_name } || target.new_shell_script_build_phase(phase_name)
+    phase.shell_script = <<~SCRIPT
+      set -e
+      SRC="${PODS_ROOT}/#{target.name}/PrivacyInfo.xcprivacy"
+      if [ -f "$SRC" ]; then
+        cp "$SRC" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/PrivacyInfo.xcprivacy"
+      fi
+    SCRIPT
+
+    puts "Embedded PrivacyInfo.xcprivacy into #{target.name}"
+  end
 end
