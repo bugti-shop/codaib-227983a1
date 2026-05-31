@@ -71,4 +71,18 @@ post_install do |installer|
 
     puts "Embedded PrivacyInfo.xcprivacy into #{target.name}"
   end
+
+  # ---------------------------------------------------------------------------
+  # Privacy-manifest audit: fail `pod install` if any tracked third-party SDK
+  # is missing PrivacyInfo.xcprivacy and we don't ship a local patch for it.
+  # Prevents silent ITMS-91061 regressions when new SDKs are added.
+  # ---------------------------------------------------------------------------
+  audit_script = File.expand_path('../../ios-privacy-patches/audit-privacy-manifests.sh', __dir__)
+  pods_root_arg = File.expand_path('..', __dir__) # -> ios/App
+  if File.exist?(audit_script)
+    puts "Running privacy-manifest audit..."
+    unless system('bash', audit_script, pods_root_arg)
+      raise "Privacy-manifest audit failed — see messages above. ITMS-91061 risk."
+    end
+  end
 end

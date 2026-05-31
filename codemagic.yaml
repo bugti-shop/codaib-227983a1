@@ -43,6 +43,10 @@ workflows:
         script: |
           cd ios/App && pod install
 
+      - name: Verify privacy manifests
+        script: |
+          bash ios-privacy-patches/audit-privacy-manifests.sh ios/App
+
       - name: Patch PurchasesHybridCommon
         script: |
           FILE="ios/App/Pods/PurchasesHybridCommon/ios/PurchasesHybridCommon/PurchasesHybridCommon/StoreProduct+HybridAdditions.swift"
