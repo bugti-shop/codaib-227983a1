@@ -1,61 +1,58 @@
+## Maqsad
 
+Aisa build-time guard banayein jo har naye third-party Pod ke liye check kare ke uske paas `PrivacyInfo.xcprivacy` manifest hai ya nahi. Agar nahi mila aur woh Pod hamari known-missing list (GoogleSignIn, GTMSessionFetcher, GTMAppAuth, etc.) mein hai, to local patch automatically apply ho jaye. Agar koi naya unknown Pod bhi missing nikle, to **build fail** ho jaye ek clear message ke saath — taake App Store reject hone se pehle hi pata chal jaye.
 
-## Goal
-Let users point their camera at a handwritten paper / sticky-note board, and have AI extract individual tasks from it (title + optional date/priority/folder), then add them to their task list.
+## Pichli baar kon si files edit hui thin
 
-## Recommended approach
+1. **`ios/App/Podfile`** — `post_install` hook add hua tha jo 3 manifests (GoogleSignIn, GTMSessionFetcher, GTMAppAuth) ko `ios-privacy-patches/` se Pod folders mein copy karta hai, aur ek `[Flowist] Embed Privacy Manifest` shell script build phase add karta hai.
+2. **`ios/App/App/capacitor.config.json`** — GoogleAuth plugin config restore hui (iOS client IDs, scopes) taake Xcode simulator mein Google Sign-In kaam kare.
 
-**Capture** → `@capacitor/camera` (already installed) on mobile, file input fallback on web. Compress to ~1024px JPEG ~80% quality before upload (keeps cost/latency low).
+(Note: `ios-privacy-patches/` folder aur uski 3 `.xcprivacy` files pehle se mojood thin — woh edit nahi hui.)
 
-**Extract** → Single edge function `ai-extract-tasks-from-image` that sends the image to **Lovable AI Gateway** with `google/gemini-3-flash-preview` (vision-capable, fast, cheap). Use tool-calling to return a structured array of tasks — same shape as `ai-parse-task` but plural.
+## Naya plan — Auto-detect + Auto-fail guard
 
-**Review UI** → New `ImageTaskExtractorSheet` shows the captured image + extracted tasks as editable checklist. User unchecks anything wrong, taps "Add N tasks". Tasks flow through existing add-task pipeline.
+### 1. `ios-privacy-patches/` mein audit script add karna
+Naya file: **`ios-privacy-patches/audit-privacy-manifests.sh`**
 
-**Gating** → Pro-only, same `requireFeature('ai_dictation')` pattern (or a new `ai_vision` flag). Free users see the entry point but tap → soft paywall.
+Ye script `ios/App/Pods/` ke har installed Pod ko scan karega:
+- Agar Pod ke andar `PrivacyInfo.xcprivacy` mil gaya → OK.
+- Agar nahi mila lekin hamari **known-patchable list** mein hai (`GoogleSignIn`, `GTMSessionFetcher`, `GTMAppAuth`, plus future additions) → patch apply karke OK.
+- Agar nahi mila aur list mein bhi nahi hai → **error print + exit 1** (build fail), message ke saath:
+  > "Naya SDK '<PodName>' bina PrivacyInfo.xcprivacy ke install hua hai. Pehle uska manifest `ios-privacy-patches/` mein add karein aur known-list update karein, warna App Store ITMS-91061 dega."
 
-**Entry point** → New camera/scan icon in the FAB area on Today/Upcoming pages, plus inside `TaskInputSheet` next to the existing AI mic.
+### 2. `ios/App/Podfile` ke `post_install` hook ko upgrade karna
+- Existing 3-manifest copy logic same rahegi.
+- End mein audit script call hoga — agar fail kare to `pod install` hi error de de.
+- Ek **allowlist file** (`ios-privacy-patches/known-pods.txt`) read karega jisme Apple ki "commonly used third-party SDKs" list ke Pods hon. Sirf un Pods pe strict check hoga, taake har chhota helper pod build na todh de.
 
-## Cost & technology comparison
+### 3. Codemagic CI guard
+**`codemagic.yaml`** mein ek naya step add hoga (CocoaPods install ke baad):
+```yaml
+- name: Verify privacy manifests
+  script: bash ios-privacy-patches/audit-privacy-manifests.sh ios/App
+```
+Agar koi naya SDK missing manifest ke saath sneak in kar gaya, CI build wahin ruk jayegi — App Store tak pohanchne se pehle.
 
-| Option | Quality | Cost per scan | Speed | Notes |
-|---|---|---|---|---|
-| **Gemini 3 Flash (recommended)** | Excellent OCR + reasoning (sticky notes, handwriting, layout) | Very low — ~$0.0003-0.001 per image via Lovable AI | 1-3s | One-shot: OCR + parse + structure. No extra setup. |
-| Gemini 2.5 Flash Lite | Good for printed text, weaker on messy handwriting | Cheapest | <1s | Risky for sticky-note handwriting |
-| GPT-5 Mini vision | Excellent, slightly better on cursive | Higher cost | 2-4s | Same Lovable AI gateway |
-| Tesseract.js (on-device OCR) | Poor on handwriting, no semantic parsing | Free | Slow on mobile | Would need a 2nd AI call to structure → no win |
-| Google Cloud Vision API | Great OCR but raw text only | Requires separate API key + billing | Fast | Still need 2nd AI call to extract tasks |
+### 4. `ios-privacy-patches/README.md` update
+Naya section: "Naya SDK add karte waqt kya karna hai" — 3 steps (manifest file banao, known-pods.txt mein add karo, run pod install).
 
-**Verdict**: Gemini 3 Flash via Lovable AI is the clear winner — single call does OCR + task extraction + structuring, no extra API keys, leverages existing `LOVABLE_API_KEY`.
+## Agar same ITMS-91061 error dobara aaye to?
 
-## Cost protection
-- Compress image client-side before upload (cuts tokens ~5x)
-- Pro-only gating prevents abuse
-- Optional: soft cap of 30 scans/day per user (stored in localStorage), bypassable for power users
-- Surface 429/402 errors as friendly toasts (same pattern as `ai-parse-task`)
+Plan implement hone ke baad **scenarios**:
 
-## Files to add / change
+| Scenario | Kya hoga |
+|---|---|
+| Same 3 SDKs (Google*) ka manifest dobara missing | Podfile hook auto-copy kar dega — kuch karne ki zarurat nahi. |
+| Pod version upgrade ho gaya aur naya manifest bundle hai | Hook overwrite nahi karega agar pehle se mojood ho — ya hum apna patch use karein ge. Dono case mein App Store ko manifest milega. |
+| Naya third-party SDK add kiya (e.g. Firebase, Branch) | Audit script CI mein build fail kar dega `pod install` ya `Verify privacy manifests` step pe. Aap ko manifest banana padega — fir same flow. |
+| Manifest file corrupt/missing from repo | Hook gracefully skip karega + warning, audit fail karega. Repo se restore karna hoga. |
 
-**New**
-- `supabase/functions/ai-extract-tasks-from-image/index.ts` — vision edge function with `extract_tasks` tool returning `{ tasks: [{title, dueDateIso?, deadlineIso?, priority, folderId?, sectionId?, repeatType}] }`
-- `src/components/ImageTaskExtractorSheet.tsx` — capture UI, preview, editable extracted task list, "Add all" button
-- `src/utils/imageCaptureForAI.ts` — wraps `@capacitor/camera` + web fallback, returns compressed base64
+**Bottom line:** Iske baad ITMS-91061 silently nahi aa sakta — ya to auto-fix hoga, ya CI fail hogi App Store submit hone se pehle.
 
-**Edit**
-- `src/components/TaskInputSheet.tsx` — add 📷 button next to the AI mic that opens the new sheet
-- `src/contexts/SubscriptionContext.tsx` — add `ai_vision` feature flag (or reuse `ai_dictation`)
-- `src/pages/todo/Today.tsx` & `Upcoming.tsx` — optional: add a small "Scan paper" entry in the FAB long-press menu
+## Files jo is plan mein change/create hongi
 
-## UX flow
-1. User taps 📷 in TaskInputSheet → camera opens
-2. User snaps the paper / sticky-note board
-3. Sheet shows preview + spinner "Reading your tasks…"
-4. ~2s later: list of extracted tasks as checkboxes (all checked by default), each with inferred date/priority chip
-5. User unchecks junk, edits any title inline, taps "Add 5 tasks"
-6. All tasks created in current folder/section (or the AI-detected one if user spoke a folder name on the paper)
-
-<lov-actions>
-<lov-suggestion message="Looks good — implement it as planned with Gemini 3 Flash, Pro-gated, with the 📷 button inside TaskInputSheet and a review sheet before adding.">Build it as planned</lov-suggestion>
-<lov-suggestion message="Build it but skip the review sheet — auto-add all detected tasks immediately for a faster flow, and show a single 'Added 5 tasks · Undo' toast.">Auto-add without review</lov-suggestion>
-<lov-suggestion message="Build it as planned but also add a daily scan limit (e.g. 5/day for free users with paywall after, unlimited for Pro) instead of fully Pro-gating it.">Free with daily limit</lov-suggestion>
-<lov-suggestion message="Also support extracting tasks from an existing photo in the gallery (not just live camera) so users can scan whiteboard photos they already took.">Add gallery import too</lov-suggestion>
-</lov-actions>
+- **CREATE** `ios-privacy-patches/audit-privacy-manifests.sh`
+- **CREATE** `ios-privacy-patches/known-pods.txt`
+- **EDIT** `ios/App/Podfile` (audit call add)
+- **EDIT** `codemagic.yaml` (verify step add)
+- **EDIT** `ios-privacy-patches/README.md` (new-SDK workflow)
