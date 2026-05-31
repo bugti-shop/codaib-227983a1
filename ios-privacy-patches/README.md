@@ -61,3 +61,27 @@ Products/Applications/App.app/Frameworks/GTMAppAuth.framework/PrivacyInfo.xcpriv
 ```
 If those three files are present, App Store Connect will stop emitting
 ITMS-91061 for them.
+
+## Adding a NEW third-party SDK (preventing ITMS-91061 regressions)
+
+The Podfile's `post_install` hook now runs `audit-privacy-manifests.sh`
+after every `pod install`, and Codemagic runs it again in CI. If any pod
+listed in `known-pods.txt` is installed **without** `PrivacyInfo.xcprivacy`
+and we don't ship a local patch for it, the build **fails immediately** —
+so an SDK can never sneak through to App Store Connect and trigger
+ITMS-91061 silently.
+
+When adding a new SDK that Apple flags as "commonly used":
+
+1. Create `ios-privacy-patches/PrivacyInfo-<PodName>.xcprivacy` (copy an
+   existing one and edit the `NSPrivacyAccessedAPITypes` to match the
+   SDK's documented required-reason API usage).
+2. Add `<PodName>` to `known-pods.txt` if it isn't already there.
+3. (Optional) Extend the `manifests` hash in `ios/App/Podfile` if you want
+   the framework to embed your patched manifest into its `.framework` (not
+   just the app bundle).
+4. Run `cd ios/App && pod install`. The audit script will auto-copy your
+   new manifest and confirm everything is wired up.
+
+If the audit prints `MISSING manifest for tracked pod 'X'`, follow steps
+1–4 for that pod.
