@@ -125,6 +125,18 @@ All colors MUST be HSL.
     height: 100% !important;
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body.ios-app {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: hsl(var(--background));
+  }
+
   .dark,
   .ocean,
   .forest,
