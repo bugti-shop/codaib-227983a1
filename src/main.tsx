@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
@@ -179,10 +180,24 @@ const renderApp = () => {
       </Suspense>
     </React.StrictMode>
   );
+
+  if (Capacitor.isNativePlatform()) {
+    requestAnimationFrame(() => {
+      SplashScreen.hide({ fadeOutDuration: 250 }).catch((error) => {
+        console.warn('[SplashScreen] Hide failed:', error);
+      });
+    });
+  }
 };
 
 // Render immediately — don't block on cache warming
 renderApp();
+
+if (Capacitor.isNativePlatform()) {
+  setTimeout(() => {
+    SplashScreen.hide({ fadeOutDuration: 0 }).catch(() => {});
+  }, 1500);
+}
 
 // Warm settings cache in background (non-blocking)
 warmSettingsCache().catch(() => {});
