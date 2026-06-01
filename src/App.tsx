@@ -601,7 +601,7 @@ const DeferredSyncInit = () => {
   }, []);
 
   if (!ready) return null;
-   
+  return null;
 };
 
  
