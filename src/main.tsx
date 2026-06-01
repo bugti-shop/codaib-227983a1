@@ -49,7 +49,7 @@ const hasCacheBeenCleared = (() => {
   }
 })();
 
-if (!hasCacheBeenCleared) {
+if (!hasCacheBeenCleared && !Capacitor.isNativePlatform()) {
   // Write flag first so a crash/reload won't re-trigger the wipe.
   try { localStorage.setItem(CACHE_CLEAR_KEY, CACHE_CLEAR_DONE_VALUE); } catch {}
 
