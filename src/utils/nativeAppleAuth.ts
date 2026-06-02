@@ -1,6 +1,7 @@
 // Native Apple Sign-In for iOS (Capacitor 5). Falls back to web OAuth on non-native.
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
+import { setSetting } from '@/utils/settingsStorage';
 
 export const isNativeApple = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
@@ -16,12 +17,16 @@ export const signInWithAppleNative = async () => {
   );
   const SignInWithApple = mod.SignInWithApple || mod.default?.SignInWithApple || mod;
 
+  const rawNonce = crypto.randomUUID();
+  const nonceBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
+  const hashedNonce = Array.from(new Uint8Array(nonceBytes)).map((b) => b.toString(16).padStart(2, '0')).join('');
+
   const options = {
-    clientId: 'com.flowist.app.signin', // Apple Services ID
-    redirectURI: 'https://flowist.me/~oauth/callback',
+    clientId: 'com.flowist.app',
+    redirectURI: 'https://www.flowist.me/~oauth/callback',
     scopes: 'email name',
     state: '',
-    nonce: Math.random().toString(36).slice(2),
+    nonce: hashedNonce,
   };
 
   const response = await SignInWithApple.authorize(options);
@@ -32,8 +37,21 @@ export const signInWithAppleNative = async () => {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'apple',
     token: identityToken,
-    nonce: options.nonce,
+    nonce: rawNonce,
   });
   if (error) throw error;
+  if (data.user) {
+    const displayName = [r?.givenName, r?.familyName].filter(Boolean).join(' ') || data.user.email || 'Apple User';
+    await setSetting('googleUser', {
+      email: data.user.email || r?.email || '',
+      name: displayName,
+      picture: '',
+      accessToken: '',
+      uid: data.user.id,
+      accessTokenExpiresAt: 0,
+      expiresAt: Date.now() + 365 * 24 * 3600 * 1000,
+    });
+    window.dispatchEvent(new CustomEvent('googleAuthStateChanged'));
+  }
   return data.user;
 };

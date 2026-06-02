@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { TodoBottomNavigation } from '@/components/TodoBottomNavigation';
@@ -22,7 +22,6 @@ import { AppLockSetup } from '@/components/AppLockSetup';
 import { downloadBackup, downloadData, restoreFromBackup } from '@/utils/dataBackup';
 import { createNativeBackup, isNativePlatform } from '@/utils/nativeBackup';
 import { BackupSuccessDialog } from '@/components/BackupSuccessDialog';
-const SyncBackupSheet = lazy(() => import('@/components/SyncBackupSheet').then(m => ({ default: m.SyncBackupSheet })));
 
 
 import { Capacitor } from '@capacitor/core';
@@ -65,8 +64,6 @@ const TodoSettings = () => {
   const [showNotificationsExpanded, setShowNotificationsExpanded] = useState(false);
   const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
-  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showBackupSuccessDialog, setShowBackupSuccessDialog] = useState(false);
   const [backupFilePath, setBackupFilePath] = useState('');
@@ -74,8 +71,6 @@ const TodoSettings = () => {
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
-  const [showSyncBackupSheet, setShowSyncBackupSheet] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
   
   // Notification settings
   const [taskRemindersEnabled, setTaskRemindersEnabled] = useState(true);
@@ -184,19 +179,6 @@ const TodoSettings = () => {
   };
 
 
-  const handleRestoreFromCloud = async () => {
-    try {
-      setIsRestoring(true);
-      const { restoreFromDrive } = await import('@/utils/googleDriveSync');
-      await restoreFromDrive();
-      toast.success('Data restored from cloud successfully!');
-    } catch (err) {
-      toast.error('Failed to restore from cloud. Make sure you are signed in.');
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
   const handleDeleteData = () => setShowDeleteDialog(true);
 
 
@@ -215,52 +197,6 @@ const TodoSettings = () => {
     toast.success(t('toasts.dataDeleted'));
     setShowDeleteDialog(false);
     setTimeout(() => window.location.href = '/', 1000);
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      // Delete all data from Google Drive
-      try {
-        const { deleteAllDriveData, stopAutoSync } = await import('@/utils/googleDriveSync');
-        stopAutoSync();
-        await deleteAllDriveData();
-      } catch (e) { console.warn('Drive cleanup failed:', e); }
-
-      // Sign out from Supabase
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        await supabase.auth.signOut();
-      } catch (authErr) {
-        console.warn('Failed to sign out from Supabase:', authErr);
-      }
-
-      // Clear in-app profile
-      try {
-        const { saveUserProfile } = await import('@/hooks/useUserProfile');
-        await saveUserProfile({ name: '', avatarUrl: '', coverUrl: '' });
-      } catch {}
-
-      // Revoke pro access
-      try {
-        await setSetting('flowist_admin_bypass', false);
-      } catch {}
-
-      // Clear ALL local data
-      await clearAllSettings();
-      const dbs = await window.indexedDB.databases?.() || [];
-      for (const db of dbs) {
-        if (db.name) window.indexedDB.deleteDatabase(db.name);
-      }
-      localStorage.clear();
-      sessionStorage.clear();
-
-      toast.success(t('toasts.accountDeleted', 'Account deleted successfully'));
-      setShowDeleteAccountDialog(false);
-      setTimeout(() => { window.location.href = '/'; }, 1500);
-    } catch (error) {
-      console.error('Account deletion error:', error);
-      toast.error(t('toasts.accountDeleteFailed', 'Failed to delete account'));
-    }
   };
 
   const handleShareApp = () => {
@@ -440,21 +376,7 @@ const TodoSettings = () => {
             </button>
             <SettingsRow label={t('settings.restoreData')} onClick={handleRestoreData} />
             <SettingsRow label={t('settings.downloadData')} onClick={handleDownloadData} />
-            <SettingsRow label="Sync Backup History" onClick={() => setShowSyncBackupSheet(true)} />
-            <SettingsRow label="Restore from Cloud" onClick={handleRestoreFromCloud} />
             <SettingsRow label={t('settings.deleteData')} onClick={handleDeleteData} />
-          </div>
-
-          {/* Account Section */}
-          <div className="border border-border rounded-lg overflow-hidden">
-            <SectionHeading title={t('settings.account', 'Account')} />
-            <button
-              onClick={() => { setDeleteAccountConfirmText(''); setShowDeleteAccountDialog(true); }}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-destructive/10 transition-colors"
-            >
-              <span className="text-destructive text-sm font-medium">{t('settings.deleteAccount', 'Delete Account')}</span>
-              <ChevronRight className="h-4 w-4 text-destructive/60" />
-            </button>
           </div>
 
           {/* About & Support Section */}
