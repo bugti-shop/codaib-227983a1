@@ -24,6 +24,7 @@ const ACCESS_TOKEN_TTL = 3500 * 1000; // ~58 min
 const PROACTIVE_REFRESH_BUFFER = 15 * 60 * 1000; // refresh 15 min before expiry
 const WEB_REFRESH_RETRY_COUNT = 1;
 const NATIVE_REFRESH_RETRY_COUNT = 2;
+const NATIVE_SIGN_IN_TIMEOUT_MS = 45_000;
 
 // Debounce driveReauthNeeded to avoid spamming
 let lastReauthEventTime = 0;
@@ -191,6 +192,21 @@ const loadNativeGoogle = async (): Promise<any> => {
   return mod.GoogleAuth || mod.default?.GoogleAuth || mod;
 };
 
+const withTimeout = <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+
 const ensureNativeInit = async () => {
   if (nativeInitialized) return;
   const GoogleAuth = await loadNativeGoogle();
@@ -275,7 +291,11 @@ const nativeSignIn = async (): Promise<GoogleUser> => {
   await ensureNativeInit();
   const GoogleAuth = await loadNativeGoogle();
 
-  const result = await GoogleAuth.signIn();
+  const result = await withTimeout(
+    GoogleAuth.signIn(),
+    NATIVE_SIGN_IN_TIMEOUT_MS,
+    'Google Sign-In timed out. Please close the Google sheet and try again.',
+  );
   const r = result?.result ?? result;
 
   const accessToken = getNativeAccessToken(result);
