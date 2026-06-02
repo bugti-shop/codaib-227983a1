@@ -291,7 +291,7 @@ const nativeSignIn = async (): Promise<GoogleUser> => {
   await ensureNativeInit();
   const GoogleAuth = await loadNativeGoogle();
 
-  const result = await withTimeout(
+  const result: any = await withTimeout<any>(
     GoogleAuth.signIn(),
     NATIVE_SIGN_IN_TIMEOUT_MS,
     'Google Sign-In timed out. Please close the Google sheet and try again.',
