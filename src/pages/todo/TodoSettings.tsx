@@ -179,19 +179,6 @@ const TodoSettings = () => {
   };
 
 
-  const handleRestoreFromCloud = async () => {
-    try {
-      setIsRestoring(true);
-      const { restoreFromDrive } = await import('@/utils/googleDriveSync');
-      await restoreFromDrive();
-      toast.success('Data restored from cloud successfully!');
-    } catch (err) {
-      toast.error('Failed to restore from cloud. Make sure you are signed in.');
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
   const handleDeleteData = () => setShowDeleteDialog(true);
 
 
@@ -210,52 +197,6 @@ const TodoSettings = () => {
     toast.success(t('toasts.dataDeleted'));
     setShowDeleteDialog(false);
     setTimeout(() => window.location.href = '/', 1000);
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      // Delete all data from Google Drive
-      try {
-        const { deleteAllDriveData, stopAutoSync } = await import('@/utils/googleDriveSync');
-        stopAutoSync();
-        await deleteAllDriveData();
-      } catch (e) { console.warn('Drive cleanup failed:', e); }
-
-      // Sign out from Supabase
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        await supabase.auth.signOut();
-      } catch (authErr) {
-        console.warn('Failed to sign out from Supabase:', authErr);
-      }
-
-      // Clear in-app profile
-      try {
-        const { saveUserProfile } = await import('@/hooks/useUserProfile');
-        await saveUserProfile({ name: '', avatarUrl: '', coverUrl: '' });
-      } catch {}
-
-      // Revoke pro access
-      try {
-        await setSetting('flowist_admin_bypass', false);
-      } catch {}
-
-      // Clear ALL local data
-      await clearAllSettings();
-      const dbs = await window.indexedDB.databases?.() || [];
-      for (const db of dbs) {
-        if (db.name) window.indexedDB.deleteDatabase(db.name);
-      }
-      localStorage.clear();
-      sessionStorage.clear();
-
-      toast.success(t('toasts.accountDeleted', 'Account deleted successfully'));
-      setShowDeleteAccountDialog(false);
-      setTimeout(() => { window.location.href = '/'; }, 1500);
-    } catch (error) {
-      console.error('Account deletion error:', error);
-      toast.error(t('toasts.accountDeleteFailed', 'Failed to delete account'));
-    }
   };
 
   const handleShareApp = () => {
