@@ -308,11 +308,15 @@ const nativeSignIn = async (): Promise<GoogleUser> => {
   let supabaseUid: string | undefined;
   if (idToken) {
     try {
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: idToken,
-        access_token: accessToken,
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+          access_token: accessToken,
+        }),
+        15_000,
+        'Google session setup timed out',
+      );
       if (!error && data.user) {
         supabaseUid = data.user.id;
       }
@@ -325,7 +329,7 @@ const nativeSignIn = async (): Promise<GoogleUser> => {
   let refreshToken: string | undefined;
   if (serverAuthCode) {
     try {
-      const tokens = await exchangeAuthCodeForTokens(serverAuthCode);
+      const tokens = await withTimeout(exchangeAuthCodeForTokens(serverAuthCode), 12_000, 'Google token exchange timed out');
       refreshToken = tokens.refreshToken;
       console.log('Successfully obtained refresh_token from serverAuthCode');
     } catch (e) {
