@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { TodoBottomNavigation } from '@/components/TodoBottomNavigation';
@@ -22,7 +22,6 @@ import { AppLockSetup } from '@/components/AppLockSetup';
 import { downloadBackup, downloadData, restoreFromBackup } from '@/utils/dataBackup';
 import { createNativeBackup, isNativePlatform } from '@/utils/nativeBackup';
 import { BackupSuccessDialog } from '@/components/BackupSuccessDialog';
-const SyncBackupSheet = lazy(() => import('@/components/SyncBackupSheet').then(m => ({ default: m.SyncBackupSheet })));
 
 
 import { Capacitor } from '@capacitor/core';
@@ -65,8 +64,6 @@ const TodoSettings = () => {
   const [showNotificationsExpanded, setShowNotificationsExpanded] = useState(false);
   const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
-  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showBackupSuccessDialog, setShowBackupSuccessDialog] = useState(false);
   const [backupFilePath, setBackupFilePath] = useState('');
@@ -74,8 +71,6 @@ const TodoSettings = () => {
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
-  const [showSyncBackupSheet, setShowSyncBackupSheet] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
   
   // Notification settings
   const [taskRemindersEnabled, setTaskRemindersEnabled] = useState(true);
