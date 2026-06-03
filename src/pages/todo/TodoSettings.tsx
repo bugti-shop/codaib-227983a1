@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { getSetting, setSetting, clearAllSettings } from '@/utils/settingsStorage';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useDarkMode, themes, ThemeId } from '@/hooks/useDarkMode';
 import { languages } from '@/i18n';
 import { TasksSettingsSheet } from '@/components/TasksSettingsSheet';
@@ -71,6 +72,9 @@ const TodoSettings = () => {
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   // Notification settings
   const [taskRemindersEnabled, setTaskRemindersEnabled] = useState(true);
@@ -180,6 +184,47 @@ const TodoSettings = () => {
 
 
   const handleDeleteData = () => setShowDeleteDialog(true);
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return;
+    setIsDeletingAccount(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error(t('settings.notSignedIn', 'You are not signed in.'));
+        setIsDeletingAccount(false);
+        return;
+      }
+      const { error } = await supabase.functions.invoke('delete-account', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
+
+      // Best-effort: wipe Drive data
+      try {
+        const { deleteAllDriveData, stopAutoSync } = await import('@/utils/googleDriveSync');
+        stopAutoSync();
+        await deleteAllDriveData();
+      } catch (e) { console.warn('Drive cleanup failed:', e); }
+
+      try { await supabase.auth.signOut(); } catch {}
+      await clearAllSettings();
+      try {
+        const dbs = await window.indexedDB.databases?.() || [];
+        for (const db of dbs) { if (db.name) window.indexedDB.deleteDatabase(db.name); }
+      } catch {}
+      localStorage.clear();
+      sessionStorage.clear();
+      toast.success(t('settings.accountDeleted', 'Account deleted successfully'));
+      setShowDeleteAccountDialog(false);
+      setTimeout(() => { window.location.href = '/'; }, 1200);
+    } catch (err: any) {
+      console.error('Account deletion failed:', err);
+      toast.error(err?.message || t('settings.accountDeleteFailed', 'Failed to delete account'));
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
 
   const confirmDeleteData = async () => {
@@ -377,6 +422,15 @@ const TodoSettings = () => {
             <SettingsRow label={t('settings.restoreData')} onClick={handleRestoreData} />
             <SettingsRow label={t('settings.downloadData')} onClick={handleDownloadData} />
             <SettingsRow label={t('settings.deleteData')} onClick={handleDeleteData} />
+            <button
+              onClick={() => { setDeleteAccountConfirmText(''); setShowDeleteAccountDialog(true); }}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors"
+            >
+              <span className="text-destructive text-sm font-medium">
+                {t('settings.deleteAccount', 'Delete Account')}
+              </span>
+              <ChevronRight className="h-4 w-4 text-destructive/70" />
+            </button>
           </div>
 
           {/* About & Support Section */}
@@ -692,12 +746,6 @@ const TodoSettings = () => {
         onClose={() => setShowBackupSuccessDialog(false)}
         filePath={backupFilePath}
       />
-
-      {showSyncBackupSheet && (
-        <Suspense fallback={null}>
-          <SyncBackupSheet open={showSyncBackupSheet} onOpenChange={setShowSyncBackupSheet} />
-        </Suspense>
-      )}
 
       
 
