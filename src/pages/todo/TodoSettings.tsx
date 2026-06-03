@@ -601,11 +601,45 @@ const TodoSettings = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              disabled={deleteAccountConfirmText !== 'DELETE'}
+              disabled={deleteAccountConfirmText !== 'DELETE' || isDeletingAccount}
               onClick={handleDeleteAccount}
               className="bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:pointer-events-none"
             >
-              {t('settings.deleteAccount', 'Delete Account')}
+              {isDeletingAccount ? t('common.loading', 'Please wait…') : t('settings.deleteAccount', 'Delete Account')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Result Dialog */}
+      <AlertDialog
+        open={!!deleteResult}
+        onOpenChange={(open) => {
+          if (!open) {
+            const wasOk = deleteResult?.ok;
+            setDeleteResult(null);
+            if (wasOk) window.location.href = '/';
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={deleteResult?.ok ? '' : 'text-destructive'}>
+              {deleteResult?.ok
+                ? t('settings.accountDeletedTitle', 'Account Deleted')
+                : t('settings.accountDeleteFailedTitle', 'Deletion Failed')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{deleteResult?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                const wasOk = deleteResult?.ok;
+                setDeleteResult(null);
+                if (wasOk) window.location.href = '/';
+              }}
+            >
+              {t('common.ok', 'OK')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
