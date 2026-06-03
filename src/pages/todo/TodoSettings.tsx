@@ -75,6 +75,7 @@ const TodoSettings = () => {
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<null | { ok: boolean; message: string }>(null);
   
   // Notification settings
   const [taskRemindersEnabled, setTaskRemindersEnabled] = useState(true);
@@ -207,20 +208,36 @@ const TodoSettings = () => {
         await deleteAllDriveData();
       } catch (e) { console.warn('Drive cleanup failed:', e); }
 
+      // Sign out of Supabase + native Google (best-effort)
       try { await supabase.auth.signOut(); } catch {}
-      await clearAllSettings();
       try {
-        const dbs = await window.indexedDB.databases?.() || [];
-        for (const db of dbs) { if (db.name) window.indexedDB.deleteDatabase(db.name); }
+        const { signOutGoogle } = await import('@/utils/googleAuth');
+        await signOutGoogle();
       } catch {}
-      localStorage.clear();
-      sessionStorage.clear();
-      toast.success(t('settings.accountDeleted', 'Account deleted successfully'));
+      // Clear all local state
+      try { await clearAllSettings(); } catch {}
+      try {
+        const dbs = (await (window.indexedDB as any).databases?.()) || [];
+        for (const db of dbs) { if (db?.name) window.indexedDB.deleteDatabase(db.name); }
+      } catch {}
+      try { localStorage.clear(); } catch {}
+      try { sessionStorage.clear(); } catch {}
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch {}
+
       setShowDeleteAccountDialog(false);
-      setTimeout(() => { window.location.href = '/'; }, 1200);
+      setDeleteAccountConfirmText('');
+      setDeleteResult({ ok: true, message: t('settings.accountDeleted', 'Account deleted successfully') });
     } catch (err: any) {
       console.error('Account deletion failed:', err);
-      toast.error(err?.message || t('settings.accountDeleteFailed', 'Failed to delete account'));
+      setDeleteResult({
+        ok: false,
+        message: err?.message || t('settings.accountDeleteFailed', 'Failed to delete account'),
+      });
     } finally {
       setIsDeletingAccount(false);
     }
@@ -584,11 +601,45 @@ const TodoSettings = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              disabled={deleteAccountConfirmText !== 'DELETE'}
+              disabled={deleteAccountConfirmText !== 'DELETE' || isDeletingAccount}
               onClick={handleDeleteAccount}
               className="bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:pointer-events-none"
             >
-              {t('settings.deleteAccount', 'Delete Account')}
+              {isDeletingAccount ? t('common.loading', 'Please wait…') : t('settings.deleteAccount', 'Delete Account')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Result Dialog */}
+      <AlertDialog
+        open={!!deleteResult}
+        onOpenChange={(open) => {
+          if (!open) {
+            const wasOk = deleteResult?.ok;
+            setDeleteResult(null);
+            if (wasOk) window.location.href = '/';
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={deleteResult?.ok ? '' : 'text-destructive'}>
+              {deleteResult?.ok
+                ? t('settings.accountDeletedTitle', 'Account Deleted')
+                : t('settings.accountDeleteFailedTitle', 'Deletion Failed')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{deleteResult?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                const wasOk = deleteResult?.ok;
+                setDeleteResult(null);
+                if (wasOk) window.location.href = '/';
+              }}
+            >
+              {t('common.ok', 'OK')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
