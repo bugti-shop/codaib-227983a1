@@ -467,7 +467,10 @@ export default function Profile() {
                   try {
                     const { isNativeApple, signInWithAppleNative } = await import('@/utils/nativeAppleAuth');
                     if (isNativeApple()) {
-                      await signInWithAppleNative();
+                      const user = await signInWithAppleNative();
+                      if (user) {
+                        toast({ title: t('profile.signInSuccess', 'Signed in successfully') });
+                      }
                       return;
                     }
                     const { lovable } = await import('@/integrations/lovable/index');
@@ -478,7 +481,10 @@ export default function Profile() {
                       toast({ title: 'Sign-in failed', description: String(result.error.message || result.error), variant: 'destructive' });
                     }
                   } catch (err: any) {
-                    toast({ title: 'Sign-in failed', description: err?.message || 'Unknown error', variant: 'destructive' });
+                    const msg = err?.message || (typeof err === 'string' ? err : 'Unknown error');
+                    if (msg !== 'CANCELLED' && !/cancel/i.test(msg)) {
+                      toast({ title: 'Apple sign-in failed', description: msg, variant: 'destructive' });
+                    }
                   }
                 }}
 

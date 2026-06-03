@@ -260,6 +260,27 @@ function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> })
           <button onClick={handleAccessCode} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium">{t('onboarding.paywall.apply')}</button>
         </div>
       )}
+      <div className="flex items-center gap-3 mt-3">
+        <a
+          href="https://www.flowist.me/terms-and-conditions"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] underline"
+          style={{ color: 'hsl(0 0% 45.1%)' }}
+        >
+          {t('paywall.terms', 'Terms & Conditions')}
+        </a>
+        <span className="text-[11px]" style={{ color: 'hsl(0 0% 45.1%)' }}>•</span>
+        <a
+          href="https://www.flowist.me/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] underline"
+          style={{ color: 'hsl(0 0% 45.1%)' }}
+        >
+          {t('paywall.privacy', 'Privacy Policy')}
+        </a>
+      </div>
     </div>
   );
 }
