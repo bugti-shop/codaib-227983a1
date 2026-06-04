@@ -1376,7 +1376,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   const { isNativeApple, signInWithAppleNative } = await import('@/utils/nativeAppleAuth');
                   if (isNativeApple()) {
                     await signInWithAppleNative();
-                    setStep(0);
+                    const appleProfile = await loadUserProfile().catch(() => null);
+                    if (appleProfile?.name) setUserName(appleProfile.name);
+                    setStep(28);
                     return;
                   }
                   const { lovable } = await import('@/integrations/lovable/index');

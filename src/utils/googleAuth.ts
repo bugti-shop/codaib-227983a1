@@ -212,8 +212,11 @@ const ensureNativeInit = async () => {
   const GoogleAuth = await loadNativeGoogle();
   await GoogleAuth.initialize({
     clientId: CLIENT_ID,
+    iosClientId: CLIENT_ID,
+    serverClientId: '425291387152-u06impgmsgg286jg7odo4f40fu6pjmb5.apps.googleusercontent.com',
     scopes: NATIVE_SCOPES,
     grantOfflineAccess: true,
+    forceCodeForRefreshToken: true,
   });
   nativeInitialized = true;
 };
