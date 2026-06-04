@@ -452,6 +452,21 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Hard guard: never call Purchases.configure with a wrong-platform key.
+    // The iOS native SDK fatal-errors on a `goog_` key and crashes the WebView.
+    const platform = Capacitor.getPlatform();
+    const key = REVENUECAT_API_KEY || '';
+    const validPrefix = platform === 'ios' ? 'appl_' : 'goog_';
+    if (!key.startsWith(validPrefix) || key.includes('REPLACE_WITH_YOUR')) {
+      console.warn(
+        `[RevenueCat] Skipping init: API key for ${platform} is missing or invalid ` +
+          `(expected prefix "${validPrefix}"). App will run in free tier.`,
+      );
+      setIsInitialized(true);
+      setRcIsPro(false);
+      return;
+    }
+
     try {
       setRcLoading(true);
       setError(null);
