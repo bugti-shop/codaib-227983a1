@@ -24,7 +24,13 @@ import {
 // The app uses its own PremiumPaywall component instead.
 
 // RevenueCat API Key - This is a public key safe to include in the app
-const REVENUECAT_API_KEY = 'goog_WLSvWlyHHLzNAgIfhCzAYsGaZyh';
+// Platform-specific RevenueCat API keys.
+// iOS keys MUST start with `appl_` — passing a `goog_` key to the iOS SDK
+// triggers a native fatalError that crashes the WebView (black screen on launch).
+const REVENUECAT_API_KEY_ANDROID = 'goog_WLSvWlyHHLzNAgIfhCzAYsGaZyh';
+const REVENUECAT_API_KEY_IOS = 'appl_REPLACE_WITH_YOUR_IOS_KEY';
+const REVENUECAT_API_KEY =
+  Capacitor.getPlatform() === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
 
 // Entitlement identifier
 const ENTITLEMENT_ID = 'npd Pro';
