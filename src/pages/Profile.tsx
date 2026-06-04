@@ -57,6 +57,16 @@ export default function Profile() {
     getSetting<string | null>('flowist_manual_country', null).then(setManualCountryCode);
   }, []);
 
+  // Mirror Apple/Google-provided name into the local profile so the Profile
+  // screen shows it automatically — no manual name entry required (Apple HIG).
+  useEffect(() => {
+    if (!user) return;
+    const authName = (user as any)?.name?.trim?.() || '';
+    if (authName && !profile.name) {
+      updateProfile({ name: authName }).catch(() => {});
+    }
+  }, [user, profile.name, updateProfile]);
+
 
   useEffect(() => {
     const checkLastDashboard = async () => {
