@@ -1,9 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Crown, Gift, Calendar, Clock, ChevronRight, Shield } from 'lucide-react';
+import { Crown, Gift, Calendar, Clock, ChevronRight, Shield, Loader2, RefreshCw } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
 
 const ENTITLEMENT_ID = 'npd Pro';
 const TRIAL_TOTAL_DAYS = 8;
