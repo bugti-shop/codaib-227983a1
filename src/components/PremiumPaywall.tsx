@@ -6,7 +6,6 @@ import { useSubscription, ProductType } from '@/contexts/SubscriptionContext';
 import { Capacitor } from '@capacitor/core';
 import { PurchasesPackage, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { triggerTripleHeavyHaptic } from '@/utils/haptics';
-import { setSetting } from '@/utils/settingsStorage';
 import { supabase } from '@/lib/supabase';
 
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -27,7 +26,7 @@ const PERIOD_LABELS: Record<string, string> = {
 // Shared hook for plans and purchase logic
 function usePaywallLogic() {
   const { t } = useTranslation();
-  const { showPaywall, closePaywall, unlockPro, purchase, offerings, restorePurchases, isNewFreeUser, isPro, paywallFeature } = useSubscription();
+  const { showPaywall, closePaywall, purchase, offerings, restorePurchases, isNewFreeUser, isPro, paywallFeature } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<ProductType>('monthly');
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
