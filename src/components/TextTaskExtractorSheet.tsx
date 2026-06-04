@@ -22,7 +22,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { acquireAiLock, getAiBusyMessage, releaseAllAiLocks } from '@/utils/aiConcurrencyLock';
 import { extractTextFromPdfFile } from '@/utils/pdfTextExtract';
 
-const AI_TIMEOUT_MS = 60_000;
+const AI_TIMEOUT_MS = 180_000; // long emails / PDFs are chunked server-side
 
 type SourceMode = 'text' | 'email' | 'pdf';
 
