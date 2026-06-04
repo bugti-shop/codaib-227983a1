@@ -181,6 +181,14 @@ const FREE_TRIAL_DAYS = 3;
 const GRACE_PERIOD_DAYS = 2;
 const SIGNOUT_GRACE_MS = 24 * 60 * 60 * 1000; // 1 day after sign-out
 
+const hasActiveRevenueCatAccess = (info: CustomerInfo | null | undefined): boolean => {
+  if (!info) return false;
+  return Boolean(
+    info.entitlements.active[ENTITLEMENT_ID] ||
+      ((info as any).activeSubscriptions && (info as any).activeSubscriptions.length > 0),
+  );
+};
+
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   // Local state
   const [localProAccess, setLocalProAccess] = useState(() => {
