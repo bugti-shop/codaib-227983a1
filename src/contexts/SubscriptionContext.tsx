@@ -24,7 +24,13 @@ import {
 // The app uses its own PremiumPaywall component instead.
 
 // RevenueCat API Key - This is a public key safe to include in the app
-const REVENUECAT_API_KEY = 'goog_WLSvWlyHHLzNAgIfhCzAYsGaZyh';
+// Platform-specific RevenueCat API keys.
+// iOS keys MUST start with `appl_` — passing a `goog_` key to the iOS SDK
+// triggers a native fatalError that crashes the WebView (black screen on launch).
+const REVENUECAT_API_KEY_ANDROID = 'goog_WLSvWlyHHLzNAgIfhCzAYsGaZyh';
+const REVENUECAT_API_KEY_IOS = 'appl_REPLACE_WITH_YOUR_IOS_KEY';
+const REVENUECAT_API_KEY =
+  Capacitor.getPlatform() === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
 
 // Entitlement identifier
 const ENTITLEMENT_ID = 'npd Pro';
@@ -443,6 +449,21 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     if (!Capacitor.isNativePlatform()) {
       console.log('RevenueCat: Skipping initialization on web platform');
       setIsInitialized(true);
+      return;
+    }
+
+    // Hard guard: never call Purchases.configure with a wrong-platform key.
+    // The iOS native SDK fatal-errors on a `goog_` key and crashes the WebView.
+    const platform = Capacitor.getPlatform();
+    const key = REVENUECAT_API_KEY || '';
+    const validPrefix = platform === 'ios' ? 'appl_' : 'goog_';
+    if (!key.startsWith(validPrefix) || key.includes('REPLACE_WITH_YOUR')) {
+      console.warn(
+        `[RevenueCat] Skipping init: API key for ${platform} is missing or invalid ` +
+          `(expected prefix "${validPrefix}"). App will run in free tier.`,
+      );
+      setIsInitialized(true);
+      setRcIsPro(false);
       return;
     }
 
