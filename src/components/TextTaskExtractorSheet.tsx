@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { acquireAiLock, getAiBusyMessage, releaseAllAiLocks } from '@/utils/aiConcurrencyLock';
 import { extractTextFromPdfFile } from '@/utils/pdfTextExtract';
+import { ensureSignedInForAi } from '@/utils/aiAccessGuard';
 
 const AI_TIMEOUT_MS = 180_000; // long emails / PDFs are chunked server-side
 
@@ -113,6 +114,10 @@ export const TextTaskExtractorSheet = ({
   };
 
   const runExtraction = async () => {
+    if (!(await ensureSignedInForAi())) {
+      onClose();
+      return;
+    }
     if (!hasPaidAi) {
       onClose();
       requireFeature('ai_dictation');
