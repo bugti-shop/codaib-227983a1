@@ -20,7 +20,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { TodoItem, Folder, Priority, RepeatType } from '@/types/note';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { canUseAiFeature, recordAiUsage, getLimitReachedMessage } from '@/utils/aiUsageLimits';
 import { acquireAiLock, getAiBusyMessage, releaseAllAiLocks } from '@/utils/aiConcurrencyLock';
 
 const AI_SCAN_TIMEOUT_MS = 45_000;
@@ -69,15 +68,9 @@ export const ImageTaskExtractorSheet = ({
   currentSectionId,
 }: Props) => {
   const { t, i18n } = useTranslation();
-  const { isPro, isLocalTrial, isAdminBypass, isRevenueCatTrial, requireFeature } = useSubscription();
-  const isStripeTrialing = typeof window !== 'undefined' && Boolean((window as any).__stripeIsTrialing);
-  // Any trial that has a payment method attached (Stripe web trial, RevenueCat native trial).
-  const isPaidTrial = isStripeTrialing || isRevenueCatTrial;
-  const isOnTrial = isLocalTrial || isPaidTrial;
-  const isPaidPro = isPro && !isOnTrial;
-  // Unlimited AI for: paid Pro, admin (BUGTI code), and any trial with a card on file
-  // (Stripe trial OR Android/iOS native RevenueCat trial). Only the local no-card trial gets the daily cap.
-  const hasUnlimitedAi = isPaidPro || isAdminBypass || isPaidTrial;
+  const { isPro, isAdminBypass, requireFeature } = useSubscription();
+  // Strict paid-only access: must be Pro entitled (paid sub, paid trial, or admin bypass).
+  const hasPaidAi = isPro || isAdminBypass;
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [items, setItems] = useState<ReviewItem[]>([]);
@@ -111,13 +104,9 @@ export const ImageTaskExtractorSheet = ({
   };
 
   const runExtraction = async (dataUrl: string) => {
-    if (!hasUnlimitedAi && !isOnTrial) {
+    if (!hasPaidAi) {
       onClose();
-      requireFeature('ai_scan' as any);
-      return;
-    }
-    if (!hasUnlimitedAi && !canUseAiFeature('scan')) {
-      toast.error(getLimitReachedMessage('scan'));
+      requireFeature('ai_dictation');
       return;
     }
     // Prevent concurrent AI calls — Android WebView OOMs with parallel base64 uploads.
@@ -175,7 +164,6 @@ export const ImageTaskExtractorSheet = ({
 
       setItems(reviewItems);
       setHasRun(true);
-      if (!hasUnlimitedAi) recordAiUsage('scan');
 
       if (reviewItems.length === 0) {
         toast.info(t('imageExtract.noTasks', 'No tasks detected in this image'));

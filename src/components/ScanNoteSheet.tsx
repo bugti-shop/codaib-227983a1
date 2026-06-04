@@ -14,7 +14,6 @@ import { captureImageForAI } from '@/utils/imageCaptureForAI';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeForDisplay } from '@/lib/sanitize';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { canUseAiFeature, recordAiUsage, getLimitReachedMessage } from '@/utils/aiUsageLimits';
 import { acquireAiLock, getAiBusyMessage, releaseAllAiLocks } from '@/utils/aiConcurrencyLock';
 
 const AI_SCAN_TIMEOUT_MS = 45_000;
@@ -29,12 +28,8 @@ interface Props {
 
 export const ScanNoteSheet = ({ isOpen, onClose, onInsertHtml }: Props) => {
   const { t, i18n } = useTranslation();
-  const { isPro, isLocalTrial, isAdminBypass, isRevenueCatTrial, requireFeature } = useSubscription();
-  const isStripeTrialing = typeof window !== 'undefined' && Boolean((window as any).__stripeIsTrialing);
-  const isPaidTrial = isStripeTrialing || isRevenueCatTrial;
-  const isOnTrial = isLocalTrial || isPaidTrial;
-  const isPaidPro = isPro && !isOnTrial;
-  const hasUnlimitedAi = isPaidPro || isAdminBypass || isPaidTrial;
+  const { isPro, isAdminBypass, requireFeature } = useSubscription();
+  const hasPaidAi = isPro || isAdminBypass;
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [html, setHtml] = useState('');
@@ -68,13 +63,9 @@ export const ScanNoteSheet = ({ isOpen, onClose, onInsertHtml }: Props) => {
   };
 
   const runExtraction = async (dataUrl: string) => {
-    if (!hasUnlimitedAi && !isOnTrial) {
+    if (!hasPaidAi) {
       onClose();
-      requireFeature('ai_scan' as any);
-      return;
-    }
-    if (!hasUnlimitedAi && !canUseAiFeature('scan')) {
-      toast.error(getLimitReachedMessage('scan'));
+      requireFeature('ai_dictation');
       return;
     }
     const release = acquireAiLock();
@@ -107,7 +98,6 @@ export const ScanNoteSheet = ({ isOpen, onClose, onInsertHtml }: Props) => {
       setHtml(rawHtml);
       setSuggestedTitle(title);
       setHasRun(true);
-      if (!hasUnlimitedAi) recordAiUsage('scan');
 
       if (!rawHtml) {
         toast.info(t('scanNote.noText', 'No readable text found in this image'));
