@@ -20,7 +20,81 @@ interface ExtractRequest {
 }
 
 const AI_GATEWAY_TIMEOUT_MS = 60_000;
-const MAX_INPUT_CHARS = 120_000; // ~30 pages of text
+const MAX_INPUT_CHARS = 400_000;   // ~100 pages — anything above is truncated
+const CHUNK_SIZE = 24_000;         // characters per AI call
+const CHUNK_OVERLAP = 1_200;       // overlap so tasks spanning a boundary aren't lost
+const MAX_PARALLEL_CHUNKS = 4;     // upper bound on concurrent AI calls
+
+/**
+ * Split a long text into overlapping chunks, preferring paragraph/line boundaries
+ * so tasks aren't sliced mid-sentence. Always returns at least one chunk.
+ */
+function chunkText(input: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): string[] {
+  if (input.length <= size) return [input];
+  const chunks: string[] = [];
+  let start = 0;
+  while (start < input.length) {
+    let end = Math.min(start + size, input.length);
+    if (end < input.length) {
+      // try to back off to a natural boundary within the last 1500 chars
+      const window = input.slice(Math.max(end - 1500, start), end);
+      const candidates = [window.lastIndexOf("\n\n"), window.lastIndexOf("\n"), window.lastIndexOf(". ")];
+      const best = Math.max(...candidates);
+      if (best > 200) end = Math.max(end - 1500, start) + best + 1;
+    }
+    chunks.push(input.slice(start, end));
+    if (end >= input.length) break;
+    start = Math.max(end - overlap, start + 1);
+  }
+  return chunks;
+}
+
+/** Normalize a task title for dedupe across chunks. */
+function normTitle(s: string): string {
+  return (s || "").toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, " ").trim();
+}
+
+/**
+ * Merge two extractions of the (likely) same task — keep the richer value for
+ * each field so dates/priorities/repeat rules survive when one chunk had less
+ * context than another.
+ */
+function mergeTask(a: any, b: any): any {
+  const pick = <T,>(x: T, y: T): T => (x !== null && x !== undefined && x !== "" ? x : y);
+  const priRank: Record<string, number> = { high: 3, medium: 2, low: 1, none: 0 };
+  const repeatRank = (r: string) => (r && r !== "none" ? 1 : 0);
+  const mergedTags = Array.from(new Set([...(a.tags || []), ...(b.tags || [])])).filter(Boolean);
+  const mergedRepeatDays = Array.from(new Set([...(a.repeatDays || []), ...(b.repeatDays || [])])).sort();
+  const aDesc = (a.description || "").length;
+  const bDesc = (b.description || "").length;
+  return {
+    title: a.title.length >= b.title.length ? a.title : b.title,
+    description: aDesc >= bDesc ? a.description : b.description,
+    dueDateIso: pick(a.dueDateIso, b.dueDateIso),
+    reminderIso: pick(a.reminderIso, b.reminderIso),
+    deadlineIso: pick(a.deadlineIso, b.deadlineIso),
+    priority: (priRank[a.priority] ?? 0) >= (priRank[b.priority] ?? 0) ? a.priority : b.priority,
+    isUrgent: Boolean(a.isUrgent || b.isUrgent),
+    folderId: pick(a.folderId, b.folderId),
+    sectionId: pick(a.sectionId, b.sectionId),
+    repeatType: repeatRank(a.repeatType) >= repeatRank(b.repeatType) ? a.repeatType : b.repeatType,
+    repeatDays: mergedRepeatDays.length ? mergedRepeatDays : undefined,
+    tags: mergedTags.length ? mergedTags : undefined,
+    location: pick(a.location, b.location),
+  };
+}
+
+function dedupeAndMerge(all: any[]): any[] {
+  const map = new Map<string, any>();
+  for (const t of all) {
+    if (!t || typeof t.title !== "string" || !t.title.trim()) continue;
+    const key = normTitle(t.title);
+    if (!key) continue;
+    const prev = map.get(key);
+    map.set(key, prev ? mergeTask(prev, t) : t);
+  }
+  return Array.from(map.values());
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -102,7 +176,10 @@ Deno.serve(async (req) => {
     const langName = body.languageName || "auto";
     const sourceLabel = body.sourceLabel || "text";
 
-    const systemPrompt = `You are an expert multilingual task extractor. The user has pasted ${sourceLabel === "email" ? "an EMAIL" : sourceLabel === "pdf" ? "TEXT EXTRACTED FROM A PDF" : "TEXT"}. Read it carefully and produce a clean, deduplicated list of every actionable task it implies, with full metadata.
+    const chunks = chunkText(text);
+    const isChunked = chunks.length > 1;
+
+    const buildSystemPrompt = (chunkIndex: number, chunkCount: number) => `You are an expert multilingual task extractor. The user has pasted ${sourceLabel === "email" ? "an EMAIL" : sourceLabel === "pdf" ? "TEXT EXTRACTED FROM A PDF" : "TEXT"}. Read it carefully and produce a clean, deduplicated list of every actionable task it implies, with full metadata.${chunkCount > 1 ? `\n\nNOTE: This is part ${chunkIndex + 1} of ${chunkCount} of a long document. Adjacent parts overlap; just extract every task you can see here — the server will merge duplicates across parts. Always carry forward dates, priorities, and repeat rules when you see them.` : ""}
 
 Current datetime (ISO): ${now}
 User timezone: ${tz}
@@ -133,20 +210,22 @@ Rules:
 - Return [] if nothing actionable is found.
 - Return strictly via the tool call.`;
 
-    const aiResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        signal: AbortSignal.timeout(AI_GATEWAY_TIMEOUT_MS),
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+    const callOnce = async (chunk: string, idx: number) => {
+      const systemPrompt = buildSystemPrompt(idx, chunks.length);
+      const res = await fetch(
+        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(AI_GATEWAY_TIMEOUT_MS),
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
           model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: `Source type: ${sourceLabel}\n\n---\n${text}\n---\n\nExtract every actionable task with full metadata.` },
+            { role: "user", content: `Source type: ${sourceLabel}${chunks.length > 1 ? ` (part ${idx + 1}/${chunks.length})` : ""}\n\n---\n${chunk}\n---\n\nExtract every actionable task with full metadata.` },
           ],
           tools: [
             {
@@ -194,45 +273,56 @@ Rules:
             },
           ],
           tool_choice: { type: "function", function: { name: "extract_tasks" } },
-        }),
-      },
-    );
+          }),
+        },
+      );
+      return res;
+    };
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    // Run chunks with bounded concurrency.
+    const results: any[][] = new Array(chunks.length);
+    let cursor = 0;
+    let fatal: { status: number; error: string } | null = null;
+    const workers = Array.from({ length: Math.min(MAX_PARALLEL_CHUNKS, chunks.length) }, async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= chunks.length || fatal) return;
+        try {
+          const res = await callOnce(chunks[i], i);
+          if (!res.ok) {
+            if (res.status === 429) fatal = { status: 429, error: "Rate limit exceeded. Try again shortly." };
+            else if (res.status === 402) fatal = { status: 402, error: "AI credits exhausted." };
+            else {
+              const txt = await res.text().catch(() => "");
+              console.error("AI gateway error", res.status, txt, "chunk", i);
+              results[i] = [];
+            }
+            continue;
+          }
+          const data = await res.json();
+          const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+          if (!toolCall) { results[i] = []; continue; }
+          let parsed: { tasks?: unknown[] } = {};
+          try { parsed = JSON.parse(toolCall.function.arguments); }
+          catch (e) { console.error("Failed to parse tool args (chunk", i, ")", e); results[i] = []; continue; }
+          results[i] = Array.isArray(parsed.tasks) ? (parsed.tasks as any[]) : [];
+        } catch (e) {
+          console.error("chunk call failed", i, e);
+          results[i] = [];
+        }
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const txt = await aiResponse.text();
-      console.error("AI gateway error", aiResponse.status, txt);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+    await Promise.all(workers);
+
+    if (fatal) {
+      return new Response(JSON.stringify({ error: fatal.error }), {
+        status: fatal.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await aiResponse.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      return new Response(JSON.stringify({ tasks: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    let parsed: { tasks?: unknown[] } = {};
-    try { parsed = JSON.parse(toolCall.function.arguments); }
-    catch (e) {
-      console.error("Failed to parse tool args", e);
-      return new Response(JSON.stringify({ error: "Bad AI response" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
-    return new Response(JSON.stringify({ tasks }), {
+    const flat = results.flat().filter(Boolean);
+    const tasks = isChunked ? dedupeAndMerge(flat) : flat;
+    return new Response(JSON.stringify({ tasks, chunks: chunks.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
