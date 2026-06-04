@@ -176,8 +176,8 @@ interface UnifiedBillingContextType {
 
 const UnifiedBillingContext = createContext<UnifiedBillingContextType | undefined>(undefined);
 
-// Free trial duration in days
-const FREE_TRIAL_DAYS = 4;
+// Free trial duration in days (matches App Store / Play Store intro offer of 3 days)
+const FREE_TRIAL_DAYS = 3;
 const GRACE_PERIOD_DAYS = 2;
 const SIGNOUT_GRACE_MS = 24 * 60 * 60 * 1000; // 1 day after sign-out
 

@@ -6,7 +6,6 @@ import { useSubscription, ProductType } from '@/contexts/SubscriptionContext';
 import { Capacitor } from '@capacitor/core';
 import { PurchasesPackage, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { triggerTripleHeavyHaptic } from '@/utils/haptics';
-import { setSetting } from '@/utils/settingsStorage';
 import { supabase } from '@/lib/supabase';
 
 import { m as motion, AnimatePresence } from 'framer-motion';
@@ -27,12 +26,10 @@ const PERIOD_LABELS: Record<string, string> = {
 // Shared hook for plans and purchase logic
 function usePaywallLogic() {
   const { t } = useTranslation();
-  const { showPaywall, closePaywall, unlockPro, purchase, offerings, restorePurchases, isNewFreeUser, isPro, paywallFeature } = useSubscription();
+  const { showPaywall, closePaywall, purchase, offerings, restorePurchases, isNewFreeUser, isPro, paywallFeature } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<ProductType>('monthly');
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [adminCode, setAdminCode] = useState('');
-  const [showAdminInput, setShowAdminInput] = useState(false);
   const [adminError, setAdminError] = useState('');
 
   const PLANS = useMemo(() => {
@@ -200,16 +197,6 @@ function usePaywallLogic() {
     }
   };
 
-  const handleAccessCode = async () => {
-    if (adminCode.trim().toUpperCase() === 'BUGTI') {
-      await setSetting('flowist_admin_bypass', true);
-      await unlockPro();
-    } else {
-      setAdminError(t('onboarding.paywall.invalidCode'));
-      setAdminCode('');
-    }
-  };
-
   // Soft-limit info derived from paywallFeature like "soft_limit_notes" / "soft_limit_tasks"
   const SOFT_LIMIT_COUNTS: Record<string, number> = {
     notes: 2, tasks: 1, noteFolders: 1, taskFolders: 1, taskSections: 1,
@@ -221,15 +208,15 @@ function usePaywallLogic() {
 
   return {
     t, showPaywall, closePaywall, isNewFreeUser, isPro, selectedPlan, setSelectedPlan, isPurchasing, isRestoring,
-    adminCode, setAdminCode, showAdminInput, setShowAdminInput, adminError,
-    PLANS, currentPlan, handlePurchase, handleRestore, handleAccessCode, hasUsedTrial,
+    adminError,
+    PLANS, currentPlan, handlePurchase, handleRestore, hasUsedTrial,
     restoreEmail, setRestoreEmail, showRestoreEmail, softLimitMessage,
   };
 }
 
-// Footer: Restore + Access Code (shared across variants)
+// Footer: Restore + legal links (shared across variants)
 function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> }) {
-  const { t, isRestoring, handleRestore, showAdminInput, setShowAdminInput, adminCode, setAdminCode, handleAccessCode, adminError, restoreEmail, setRestoreEmail, showRestoreEmail } = logic;
+  const { t, isRestoring, handleRestore, adminError, restoreEmail, setRestoreEmail, showRestoreEmail } = logic;
   return (
     <div className="flex flex-col items-center gap-2 mt-3">
       {adminError && <p className="text-xs" style={{ color: 'hsl(0 84.2% 60.2%)' }}>{adminError}</p>}
@@ -247,19 +234,7 @@ function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> })
         <button onClick={handleRestore} disabled={isRestoring} className="text-xs underline disabled:opacity-50" style={{ color: 'hsl(0 0% 45.1%)' }}>
           {isRestoring ? t('onboarding.paywall.restoring') : t('onboarding.paywall.restorePurchase')}
         </button>
-        <span className="text-xs" style={{ color: 'hsl(0 0% 45.1%)' }}>•</span>
-        <button onClick={() => setShowAdminInput(!showAdminInput)} className="text-xs underline" style={{ color: 'hsl(0 0% 45.1%)' }}>
-          {t('onboarding.paywall.accessCode')}
-        </button>
       </div>
-      {showAdminInput && (
-        <div className="flex items-center gap-2 mt-2">
-          <input type="text" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAccessCode()}
-            placeholder={t('onboarding.paywall.enterCode')} autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
-            className="h-8 w-40 rounded-md px-2 text-sm" style={{ border: '1px solid hsl(0 0% 89.8%)', background: 'hsl(0 0% 100%)', color: 'hsl(0 0% 3.9%)' }} />
-          <button onClick={handleAccessCode} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium">{t('onboarding.paywall.apply')}</button>
-        </div>
-      )}
       <div className="flex items-center gap-3 mt-3">
         <a
           href="https://www.flowist.me/terms-and-conditions"

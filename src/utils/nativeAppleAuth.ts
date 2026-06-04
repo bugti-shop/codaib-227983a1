@@ -2,6 +2,7 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import { setSetting } from '@/utils/settingsStorage';
+import { saveUserProfile, loadUserProfile } from '@/hooks/useUserProfile';
 
 export const isNativeApple = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
@@ -69,10 +70,37 @@ export const signInWithAppleNative = async () => {
   }
 
   if (data?.user) {
+    // Per Apple Sign In HIG: use the name Apple provides on first auth.
+    // Apple only returns givenName/familyName on the FIRST sign-in for an Apple ID.
+    const appleName =
+      [r?.givenName, r?.familyName].filter(Boolean).join(' ').trim();
+    const existingProfile = await loadUserProfile().catch(() => null);
     const displayName =
-      [r?.givenName, r?.familyName].filter(Boolean).join(' ') ||
+      appleName ||
+      (data.user.user_metadata?.full_name as string | undefined) ||
+      existingProfile?.name ||
       data.user.email ||
       'Apple User';
+
+    // Persist Apple-provided name to Supabase user_metadata (one-shot) so we
+    // never need to ask the user to type their name again.
+    if (appleName && !data.user.user_metadata?.full_name) {
+      try {
+        await supabase.auth.updateUser({ data: { full_name: appleName, name: appleName } });
+      } catch {}
+    }
+
+    // Seed the local user profile so Profile screen shows the name immediately.
+    if (!existingProfile?.name && displayName) {
+      try {
+        await saveUserProfile({
+          name: displayName,
+          avatarUrl: existingProfile?.avatarUrl || '',
+          coverUrl: existingProfile?.coverUrl || '',
+        });
+      } catch {}
+    }
+
     await setSetting('googleUser', {
       email: data.user.email || r?.email || '',
       name: displayName,
