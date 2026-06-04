@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeForDisplay } from '@/lib/sanitize';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { acquireAiLock, getAiBusyMessage, releaseAllAiLocks } from '@/utils/aiConcurrencyLock';
+import { ensureSignedInForAi } from '@/utils/aiAccessGuard';
 
 const AI_SCAN_TIMEOUT_MS = 45_000;
 const yieldToPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
@@ -63,6 +64,10 @@ export const ScanNoteSheet = ({ isOpen, onClose, onInsertHtml }: Props) => {
   };
 
   const runExtraction = async (dataUrl: string) => {
+    if (!(await ensureSignedInForAi())) {
+      onClose();
+      return;
+    }
     if (!hasPaidAi) {
       onClose();
       requireFeature('ai_dictation');
