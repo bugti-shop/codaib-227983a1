@@ -485,7 +485,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
       const { customerInfo: info } = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
-      const hasEntitlement = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      const hasEntitlement = hasActiveRevenueCatAccess(info);
       setRcIsPro(hasEntitlement);
       // Cache entitlement + plan details on native for offline-first access
       try {
@@ -537,7 +537,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { customerInfo: info } = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
-      const hasEntitlement = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      const hasEntitlement = hasActiveRevenueCatAccess(info);
       setRcIsPro(hasEntitlement);
       try {
         localStorage.setItem('flowist_rc_entitled', hasEntitlement ? 'true' : 'false');
@@ -572,7 +572,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       setError(null);
       const result = await Purchases.purchasePackage({ aPackage: pkg });
       setCustomerInfo(result.customerInfo);
-      const hasEntitlement = result.customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      const hasEntitlement = hasActiveRevenueCatAccess(result.customerInfo);
       setRcIsPro(hasEntitlement);
       try { localStorage.setItem('flowist_rc_entitled', hasEntitlement ? 'true' : 'false'); localStorage.setItem('flowist_rc_verified_at', String(Date.now())); } catch {}
       console.log('RevenueCat: Purchase successful', { isPro: hasEntitlement });
@@ -685,7 +685,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       
       const result = await Purchases.purchaseStoreProduct(purchaseOptions);
       setCustomerInfo(result.customerInfo);
-      const hasEntitlement = result.customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      const hasEntitlement = hasActiveRevenueCatAccess(result.customerInfo);
       setRcIsPro(hasEntitlement);
       try { localStorage.setItem('flowist_rc_entitled', hasEntitlement ? 'true' : 'false'); localStorage.setItem('flowist_rc_verified_at', String(Date.now())); } catch {}
       return hasEntitlement;
@@ -706,7 +706,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       setError(null);
       const { customerInfo: info } = await Purchases.restorePurchases();
       setCustomerInfo(info);
-      const hasEntitlement = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+      const hasEntitlement = hasActiveRevenueCatAccess(info);
       setRcIsPro(hasEntitlement);
       try { localStorage.setItem('flowist_rc_entitled', hasEntitlement ? 'true' : 'false'); localStorage.setItem('flowist_rc_verified_at', String(Date.now())); } catch {}
       console.log('RevenueCat: Restore successful', { isPro: hasEntitlement });
@@ -1077,7 +1077,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
           await Purchases.logIn({ appUserID: storedUser.uid });
           const { customerInfo: info } = await Purchases.getCustomerInfo();
           setCustomerInfo(info);
-          const hasEntitlement = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+          const hasEntitlement = hasActiveRevenueCatAccess(info);
           setRcIsPro(hasEntitlement);
           try { localStorage.setItem('flowist_rc_entitled', hasEntitlement ? 'true' : 'false'); localStorage.setItem('flowist_rc_verified_at', String(Date.now())); } catch {}
           console.log('RevenueCat: Logged in with Firebase UID, isPro:', hasEntitlement);
@@ -1203,7 +1203,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
           if (isMounted) {
             console.log('RevenueCat: Customer info updated');
             setCustomerInfo(info);
-            const hasEntitlement = info.entitlements.active[ENTITLEMENT_ID] !== undefined;
+            const hasEntitlement = hasActiveRevenueCatAccess(info);
             setRcIsPro(hasEntitlement);
             try {
               localStorage.setItem('flowist_rc_entitled', hasEntitlement ? 'true' : 'false');
