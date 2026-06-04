@@ -83,15 +83,6 @@ const Settings = () => {
             <SettingsRow label={t('settings.notesSettings', 'Notes Settings')} onClick={() => { if (requireFeature('notes_settings')) state.setShowNotesSettingsSheet(true); }} />
             <SettingsRow label={t('settings.tasksSettings', 'Tasks Settings')} onClick={() => { if (requireFeature('tasks_settings')) state.setShowTasksSettingsSheet(true); }} />
             <SettingsRow label={t('settings.customizeNavigation', 'Customize Navigation')} onClick={() => { if (requireFeature('customize_navigation')) state.setShowCustomizeNavigationSheet(true); }} />
-            <SettingsRow
-              label={t('settings.showTipsAgain', 'Show tips again')}
-              onClick={() => {
-                resetAllCoachmarks();
-                toast.success(
-                  t('settings.tipsReset', 'Tips will appear again next time you use those features'),
-                );
-              }}
-            />
           </div>
 
           {/* Security Section */}
