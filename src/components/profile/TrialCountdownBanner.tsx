@@ -4,7 +4,7 @@ import { Clock, Crown } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { getSetting } from '@/utils/settingsStorage';
 
-const FREE_TRIAL_DAYS = 4;
+const FREE_TRIAL_DAYS = 3;
 
 export const TrialCountdownBanner = () => {
   const { t } = useTranslation();
