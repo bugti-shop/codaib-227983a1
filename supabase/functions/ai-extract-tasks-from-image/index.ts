@@ -51,27 +51,28 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") || "";
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.0");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
-    let userId = "";
-    let userEmail = "";
-    if (authHeader.startsWith("Bearer ")) {
-      const accessToken = authHeader.replace("Bearer ", "");
-      if (accessToken && accessToken !== anonKey) {
-        const sb = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          anonKey,
-          { global: { headers: { Authorization: authHeader } } },
-        );
-        const { data: userData, error: userError } = await sb.auth.getUser(accessToken);
-        if (userError || !userData?.user) {
-          return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        userId = String(userData.user.id || "");
-        userEmail = String(userData.user.email || "").toLowerCase();
-      }
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Sign in required" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    const accessToken = authHeader.replace("Bearer ", "");
+    if (!accessToken || accessToken === anonKey) {
+      return new Response(JSON.stringify({ error: "Sign in required" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userError } = await sb.auth.getUser(accessToken);
+    if (userError || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = String(userData.user.id || "");
+    const userEmail = String(userData.user.email || "").toLowerCase();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -121,53 +122,13 @@ Deno.serve(async (req) => {
       return exp > nowMs || grace > nowMs || e.in_billing_retry;
     });
 
-    const FEATURE = "scan";
-    const DAILY_LIMIT = 3;
-    const today = new Date().toISOString().slice(0, 10);
-    const idType = userEmail ? "email" : userId ? "user" : "anonymous";
-    const idValue = userEmail || userId || (await getAnonymousIdentifier(req));
-
-    // Atomic increment-first quota check for non-Pro users (prevents TOCTOU bypass).
-    // We increment BEFORE calling the AI gateway; on any downstream failure we
-    // decrement so users aren't penalized for server errors.
     if (!isPro) {
-      const { data: gate, error: gateErr } = await admin.rpc(
-        "increment_ai_usage_if_under_limit",
-        {
-          p_identifier: idValue,
-          p_identifier_type: idType,
-          p_feature: FEATURE,
-          p_usage_date: today,
-          p_limit: DAILY_LIMIT,
-        },
+      return new Response(
+        JSON.stringify({ error: "AI task extraction is a Pro feature. Please upgrade to continue." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
-      const row = Array.isArray(gate) ? gate[0] : gate;
-      if (gateErr || !row?.allowed) {
-        return new Response(
-          JSON.stringify({
-            error: "Daily AI scan limit reached. Upgrade to Pro for unlimited use.",
-          }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
     }
-
-    const refundUsage = async () => {
-      if (isPro) return;
-      try {
-        await admin.rpc("decrement_ai_usage", {
-          p_identifier: idValue,
-          p_identifier_type: idType,
-          p_feature: FEATURE,
-          p_usage_date: today,
-        });
-      } catch (refundErr) {
-        console.error("usage refund failed", refundErr);
-      }
-    };
+    const refundUsage = async () => { /* no-op: Pro only */ };
 
     // Normalize to a data URL
     const imageUrl = rawImage.startsWith("data:")
