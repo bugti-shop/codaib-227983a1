@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
-
 import { Crown, Gift, Calendar, Clock, ChevronRight, Shield } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { toast } from 'sonner';
+import { useState } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 const ENTITLEMENT_ID = 'npd Pro';
 const TRIAL_TOTAL_DAYS = 8;
@@ -9,6 +11,24 @@ const TRIAL_TOTAL_DAYS = 8;
 export const ProfileSubscriptionCard = () => {
   const { t } = useTranslation();
   const { isPro, planType, customerInfo, openPaywall, restorePurchases } = useSubscription();
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = async () => {
+    if (isRestoring) return;
+    setIsRestoring(true);
+    try {
+      const ok = await restorePurchases();
+      toast.success(
+        ok
+          ? t('profile.restoreSuccessSub', 'Purchases restored!')
+          : t('profile.restoreNoneFound', 'No active purchases found on this account'),
+      );
+    } catch (e: any) {
+      toast.error(t('profile.restoreFailedSub', 'Restore failed. Try again.'));
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   // Extract subscription details from RevenueCat customerInfo
   const entitlement = customerInfo?.entitlements?.active?.[ENTITLEMENT_ID];
@@ -180,14 +200,25 @@ export const ProfileSubscriptionCard = () => {
             </div>
             <ChevronRight className="h-4 w-4 text-primary" />
           </button>
-        ) : (
-          <button
-            onClick={() => restorePurchases()}
-            className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5"
-          >
-            {t('profile.restorePurchases', 'Restore Purchases')}
-          </button>
-        )}
+        ) : null}
+
+        {/* Restore purchases — always visible so users can recover an existing subscription */}
+        <button
+          onClick={handleRestore}
+          disabled={isRestoring}
+          className="w-full flex items-center justify-center gap-2 mt-1 px-3 py-2 rounded-xl border border-border/60 hover:bg-muted/50 transition-colors disabled:opacity-60"
+        >
+          {isRestoring ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+          <span className="text-xs font-medium text-foreground">
+            {isRestoring
+              ? t('profile.restoring', 'Restoring…')
+              : t('profile.restorePurchases', 'Restore Purchases')}
+          </span>
+        </button>
       </div>
     </div>
   );
