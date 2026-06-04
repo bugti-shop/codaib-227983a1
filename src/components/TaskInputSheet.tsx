@@ -62,6 +62,7 @@ import { parseNaturalLanguageTask, hasNaturalLanguagePatterns } from '@/utils/na
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles as SparklesIcon, ScanLine } from 'lucide-react';
 import { ImageTaskExtractorSheet } from './ImageTaskExtractorSheet';
+import { TextTaskExtractorSheet } from './TextTaskExtractorSheet';
 import { SafeComponent } from './ErrorBoundary';
 import { canUseAiFeature, recordAiUsage, getLimitReachedMessage } from '@/utils/aiUsageLimits';
 import { acquireAiLock, getAiBusyMessage, releaseAllAiLocks } from '@/utils/aiConcurrencyLock';
@@ -227,6 +228,7 @@ export const TaskInputSheet = ({ isOpen, onClose, onAddTask, folders, selectedFo
 
   // AI vision: scan tasks from a paper / sticky-note image (Pro-gated)
   const [showImageExtractor, setShowImageExtractor] = useState(false);
+  const [showTextExtractor, setShowTextExtractor] = useState(false);
   const [showScanCoachmark, setShowScanCoachmark] = useState(false);
   const SCAN_COACHMARK_KEY = 'scanTasksCoachmarkSeen_v1';
   const openImageExtractor = () => {
@@ -238,6 +240,10 @@ export const TaskInputSheet = ({ isOpen, onClose, onAddTask, folders, selectedFo
       return;
     }
     setShowImageExtractor(true);
+  };
+  const openTextExtractor = () => {
+    if (!requireFeature('ai_dictation')) return;
+    setShowTextExtractor(true);
   };
   const dismissScanCoachmark = () => {
     setShowScanCoachmark(false);
@@ -916,6 +922,15 @@ export const TaskInputSheet = ({ isOpen, onClose, onAddTask, folders, selectedFo
                     </div>
                   </PopoverContent>
                 </Popover>
+                <button
+                  type="button"
+                  onClick={openTextExtractor}
+                  className="w-10 h-10 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors"
+                  aria-label={t('tasks.aiExtractText', 'Extract tasks from text, email or PDF')}
+                  title={t('tasks.aiExtractTextHint', 'Paste an email or upload a PDF and AI will extract tasks')}
+                >
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </button>
               </div>
             )}
           </div>
@@ -1677,6 +1692,17 @@ export const TaskInputSheet = ({ isOpen, onClose, onAddTask, folders, selectedFo
         <ImageTaskExtractorSheet
           isOpen={showImageExtractor}
           onClose={() => setShowImageExtractor(false)}
+          onAddTasks={handleExtractedTasksAdd}
+          folders={folders}
+          sections={sections}
+          currentFolderId={folderId ?? selectedFolderId ?? null}
+          currentSectionId={sectionId ?? selectedSectionId ?? null}
+        />
+      </SafeComponent>
+      <SafeComponent fallback={null}>
+        <TextTaskExtractorSheet
+          isOpen={showTextExtractor}
+          onClose={() => setShowTextExtractor(false)}
           onAddTasks={handleExtractedTasksAdd}
           folders={folders}
           sections={sections}
