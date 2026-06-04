@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <meta name="color-scheme" content="light only" />
+    <style>
+      html, body { background-color: #ffffff; margin: 0; padding: 0; min-height: 100vh; }
+      #root { min-height: 100vh; background-color: #ffffff; }
+      #root:empty::after {
+        content: "";
+        display: block;
+        min-height: 100vh;
+        background-color: #ffffff;
+      }
+    </style>
     <title>Flowist - All-in-One Notes, To-Do Lists &amp; Daily Planner</title>
     <meta name="description" content="Flowist is a free all-in-one productivity app with smart notes, to-do lists, habit tracking, sketching &amp; daily planner. Organize your life effortlessly.">
     <meta name="author" content="Flowist" />
@@ -102,6 +113,21 @@
 </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Last-resort guard: if main.tsx fails to evaluate within 8s, reload once.
+      (function(){
+        try {
+          var k = 'flowist_boot_reload_v1';
+          setTimeout(function(){
+            var root = document.getElementById('root');
+            if (root && root.children.length === 0 && !sessionStorage.getItem(k)) {
+              sessionStorage.setItem(k, '1');
+              location.reload();
+            }
+          }, 8000);
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
