@@ -24,7 +24,7 @@ export function useSubscriptionGuard() {
       return { isActive: isPro, expirationDate: null, willRenew: false };
     }
 
-    const entitlement = customerInfo.entitlements.active['npd Pro'];
+    const entitlement = customerInfo.entitlements.active['Pro'];
     
     if (!entitlement) {
       return { isActive: isPro, expirationDate: null, willRenew: false };

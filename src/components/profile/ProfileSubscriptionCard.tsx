@@ -4,7 +4,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
-const ENTITLEMENT_ID = 'npd Pro';
+const ENTITLEMENT_ID = 'Pro';
 const TRIAL_TOTAL_DAYS = 8;
 
 export const ProfileSubscriptionCard = () => {
