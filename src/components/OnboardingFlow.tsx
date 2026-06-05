@@ -1104,6 +1104,41 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   // Welcome splash (step -1) removed
 
+  // Skip-onboarding handler — marks onboarding complete, clears saved progress,
+  // opens the paywall, and exits onboarding. Only available AFTER sign-in
+  // screens (step >= 0).
+  const handleSkipOnboarding = useCallback(async () => {
+    try { await triggerHaptic(); } catch {}
+    try {
+      await setSetting('onboarding_completed', true);
+      await setSetting('onboarding_progress_state', null);
+    } catch (e) {
+      console.warn('[Onboarding] Failed to persist skip state:', e);
+    }
+    try { openPaywall('onboarding_skip'); } catch {}
+    onComplete();
+  }, [onComplete, openPaywall]);
+
+  // Floating Skip button rendered via portal so it overlays every onboarding
+  // screen from step 0 onward (i.e. after the language + sign-in screens).
+  const skipButtonPortal = (step >= 0 && typeof document !== 'undefined')
+    ? createPortal(
+        <button
+          type="button"
+          onClick={handleSkipOnboarding}
+          aria-label={t('onboarding.skip', 'Skip')}
+          className="fixed z-[500] px-3.5 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white backdrop-blur-sm active:scale-95 transition-transform"
+          style={{
+            top: 'calc(var(--safe-top, 0px) + 12px)',
+            right: 'max(12px, env(safe-area-inset-right, 0px))',
+          }}
+        >
+          {t('onboarding.skip', 'Skip')}
+        </button>,
+        document.body,
+      )
+    : null;
+
   // Language selection screen (step -3)
   if (step === -3) {
     const languages = [
