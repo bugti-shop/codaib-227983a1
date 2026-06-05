@@ -19,5 +19,8 @@
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <!-- Splash background color -->
         <item name="windowSplashScreenBackground">#ffffff</item>
+        <!-- After splash, switch to the NoActionBar theme so the AppCompat
+             ActionBar (pink "Flowist" header) never renders over the WebView. -->
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>
