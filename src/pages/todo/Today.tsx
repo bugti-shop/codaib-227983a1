@@ -98,6 +98,26 @@ const Today = () => {
     viewModeSearch, setViewModeSearch, dropdownView, setDropdownView,
     isFilterSheetOpen, setIsFilterSheetOpen,
     isDuplicateSheetOpen, setIsDuplicateSheetOpen,
+  } = state;
+
+  // Widget deep-link: ?add=1 → auto-open the task input sheet (used by AddTask home-screen widget)
+  useEffect(() => {
+    const checkAddParam = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('add') === '1') {
+        setIsInputOpen(true);
+        params.delete('add');
+        const newSearch = params.toString();
+        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    };
+    checkAddParam();
+    window.addEventListener('popstate', checkAddParam);
+    return () => window.removeEventListener('popstate', checkAddParam);
+  }, [setIsInputOpen]);
+
+  const _restState = {
     isFolderManageOpen, setIsFolderManageOpen,
     isMoveToFolderOpen, setIsMoveToFolderOpen,
     isSelectActionsOpen, setIsSelectActionsOpen,
