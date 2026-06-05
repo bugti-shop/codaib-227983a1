@@ -16,7 +16,7 @@ public class StickyNoteWidget extends AppWidgetProvider {
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         for (int id : ids) {
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.widget_sticky_note);
-            String path = "/notesdashboard?newNote=sticky";
+            String path = "/w/new/sticky";
             Intent open = new Intent(ctx, MainActivity.class);
             open.setAction("nota.npd.com.widgets.STICKY_NOTE_" + id);
             open.setData(Uri.parse("codaib://widget" + path));

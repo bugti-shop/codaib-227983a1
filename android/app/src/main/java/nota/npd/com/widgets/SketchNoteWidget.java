@@ -16,7 +16,7 @@ public class SketchNoteWidget extends AppWidgetProvider {
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         for (int id : ids) {
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.widget_sketch_note);
-            String path = "/notesdashboard?newNote=sketch";
+            String path = "/w/new/sketch";
             Intent open = new Intent(ctx, MainActivity.class);
             open.setAction("nota.npd.com.widgets.SKETCH_NOTE_" + id);
             open.setData(Uri.parse("codaib://widget" + path));

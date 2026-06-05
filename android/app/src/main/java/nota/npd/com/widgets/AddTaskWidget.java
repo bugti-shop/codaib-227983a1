@@ -16,7 +16,7 @@ public class AddTaskWidget extends AppWidgetProvider {
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         for (int id : ids) {
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.widget_add_task);
-            String path = "/todo/today?add=1";
+            String path = "/w/add-task";
             Intent open = new Intent(ctx, MainActivity.class);
             open.setAction("nota.npd.com.widgets.ADD_TASK_" + id);
             open.setData(Uri.parse("codaib://widget" + path));
