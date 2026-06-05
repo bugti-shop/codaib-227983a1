@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import { setSetting } from '@/utils/settingsStorage';
 import { saveUserProfile, loadUserProfile } from '@/hooks/useUserProfile';
+import type { GoogleUser } from '@/utils/googleAuth';
 
 export const isNativeApple = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
@@ -204,7 +205,7 @@ export const signInWithAppleNative = async () => {
       }
     }
 
-    await setSetting('googleUser', {
+    const appUser: GoogleUser = {
       email: data.user.email || r?.profile?.email || '',
       name: displayName,
       picture: '',
@@ -212,8 +213,10 @@ export const signInWithAppleNative = async () => {
       uid: data.user.id,
       accessTokenExpiresAt: 0,
       expiresAt: Date.now() + 365 * 24 * 3600 * 1000,
-    });
-    window.dispatchEvent(new CustomEvent('googleAuthStateChanged'));
+    };
+
+    await setSetting('googleUser', appUser);
+    window.dispatchEvent(new CustomEvent('googleAuthStateChanged', { detail: { user: appUser } }));
     window.dispatchEvent(new CustomEvent('syncReconnected'));
   }
   return data?.user ?? null;
