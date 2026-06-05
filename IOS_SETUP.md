@@ -346,9 +346,9 @@ Open `ios/App/App/Splash.storyboard` to change the background color or add a log
 ## 9. RevenueCat (In-App Purchases)
 
 ### Product IDs (already in code):
-- `com.flowist.app.weekly` — $1.99
-- `com.flowist.app.monthly` — $3.99
-- `com.flowist.app.yearly` — $39.99
+- `com.flowist.app.week` — $1.99
+- `com.flowist.app.month` — $3.99
+- `com.flowist.app.year` — $39.99
 
 ### App Store Connect
 1. **My Apps → Flowist → Subscriptions** → create a subscription group `flowist_premium`
