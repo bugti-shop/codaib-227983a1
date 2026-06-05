@@ -22,14 +22,16 @@ public class JsonListFactory implements RemoteViewsService.RemoteViewsFactory {
     private final String textField;
     private final String metaField;
     private final String nestedPath; // dotted path within root object, or null for top-level array
+    private final String kind; // widget kind: note|task|section|folder
     private final List<JSONObject> items = new ArrayList<>();
 
-    public JsonListFactory(Context ctx, String key, String textField, String metaField, String nestedPath) {
+    public JsonListFactory(Context ctx, String key, String textField, String metaField, String nestedPath, String kind) {
         this.ctx = ctx;
         this.key = key;
         this.textField = textField == null ? "text" : textField;
         this.metaField = metaField;
         this.nestedPath = nestedPath;
+        this.kind = kind == null ? "" : kind;
     }
 
     @Override public void onCreate() { load(); }
@@ -89,8 +91,25 @@ public class JsonListFactory implements RemoteViewsService.RemoteViewsFactory {
         row.setTextViewText(R.id.item_meta, meta);
 
         Intent fill = new Intent();
-        fill.putExtra("itemId", o.optString("id", ""));
+        String id = o.optString("id", "");
+        String path = buildPath(id);
+        fill.putExtra("itemId", id);
+        fill.putExtra("widget_path", path);
+        // Tag the data URI so each row gets a distinct PendingIntent.
+        fill.setData(android.net.Uri.parse("flowist://row/" + kind + "/" + id));
         row.setOnClickFillInIntent(R.id.item_text, fill);
         return row;
+    }
+
+    /** Deep-link path opened when the user taps a row. */
+    private String buildPath(String id) {
+        if (id == null || id.isEmpty()) return "/";
+        switch (kind) {
+            case "note":    return "/notes?id=" + id;
+            case "task":    return "/todo/today?task=" + id;
+            case "section": return "/todo/today?section=" + id;
+            case "folder":  return "/todo/today?folder=" + id;
+            default:        return "/";
+        }
     }
 }
