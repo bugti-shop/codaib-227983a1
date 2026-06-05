@@ -75,6 +75,13 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
           echo "Build number: $BUILD_NUMBER"
 
+      - name: Bump marketing version
+        script: |
+          # App Store rejects re-using version 1.0 — bump MARKETING_VERSION based on date
+          NEW_VERSION="1.0.$(date +%Y%m%d%H%M)"
+          sed -i '' "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = ${NEW_VERSION};/g" ios/App/App.xcodeproj/project.pbxproj
+          echo "Marketing version: $NEW_VERSION"
+
       - name: Set CODE_SIGN_ENTITLEMENTS in Xcode project
         script: |
           cd ios/App
