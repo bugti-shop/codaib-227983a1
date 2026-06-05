@@ -4,6 +4,8 @@ import { loadNotesFromDB } from './noteStorage';
 import { loadTodoItems } from './todoItemsStorage';
 import { getSetting, setSetting } from './settingsStorage';
 import { Note, NoteType, TodoItem, Folder } from '@/types/note';
+import { loadFolders } from './folderStorage';
+import { loadStreakData } from './streakStorage';
 
 // Widget configuration types
 export interface WidgetConfig {
@@ -64,6 +66,8 @@ const WIDGET_NOTES_KEY = `${WIDGET_PREFS_PREFIX}notes`;
 const WIDGET_SECTIONS_KEY = `${WIDGET_PREFS_PREFIX}sections`;
 const WIDGET_CONFIG_KEY = `${WIDGET_PREFS_PREFIX}config`;
 const WIDGET_NOTES_BY_TYPE_KEY = `${WIDGET_PREFS_PREFIX}notes_by_type`;
+const WIDGET_FOLDERS_KEY = `${WIDGET_PREFS_PREFIX}folders`;
+const WIDGET_STREAK_KEY = `streak_data`;
 
 /**
  * Widget Data Sync Manager
@@ -115,6 +119,8 @@ class WidgetDataSyncManager {
         this.syncTasks(),
         this.syncNotes(),
         this.syncSections(),
+        this.syncFolders(),
+        this.syncStreak(),
       ]);
       console.log('[WidgetSync] All data synced');
     } catch (error) {
