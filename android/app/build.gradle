@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.flowist.app"
+    namespace = "nota.npd.com"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.flowist.app"
+        applicationId "nota.npd.com"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
