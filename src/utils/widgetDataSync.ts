@@ -4,6 +4,8 @@ import { loadNotesFromDB } from './noteStorage';
 import { loadTodoItems } from './todoItemsStorage';
 import { getSetting, setSetting } from './settingsStorage';
 import { Note, NoteType, TodoItem, Folder } from '@/types/note';
+import { loadFolders } from './folderStorage';
+import { loadStreakData } from './streakStorage';
 
 // Widget configuration types
 export interface WidgetConfig {
@@ -64,6 +66,8 @@ const WIDGET_NOTES_KEY = `${WIDGET_PREFS_PREFIX}notes`;
 const WIDGET_SECTIONS_KEY = `${WIDGET_PREFS_PREFIX}sections`;
 const WIDGET_CONFIG_KEY = `${WIDGET_PREFS_PREFIX}config`;
 const WIDGET_NOTES_BY_TYPE_KEY = `${WIDGET_PREFS_PREFIX}notes_by_type`;
+const WIDGET_FOLDERS_KEY = `${WIDGET_PREFS_PREFIX}folders`;
+const WIDGET_STREAK_KEY = `streak_data`;
 
 /**
  * Widget Data Sync Manager
@@ -94,11 +98,25 @@ class WidgetDataSyncManager {
     // Initial sync
     await this.syncAllData();
 
+    // Handle widget deep-link path (set by native MainActivity on widget tap)
+    try {
+      const { value } = await Preferences.get({ key: 'widget_pending_path' });
+      if (value) {
+        await Preferences.remove({ key: 'widget_pending_path' });
+        if (typeof window !== 'undefined' && value !== window.location.pathname) {
+          window.history.pushState({}, '', value);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+      }
+    } catch {}
+
     // Listen for data changes
     window.addEventListener('notesUpdated', () => this.syncNotes());
     window.addEventListener('todoItemsChanged', () => this.syncTasks());
     window.addEventListener('tasksUpdated', () => this.syncTasks());
     window.addEventListener('sectionsUpdated', () => this.syncSections());
+    window.addEventListener('foldersUpdated', () => this.syncFolders());
+    window.addEventListener('streakUpdated', () => this.syncStreak());
 
     console.log('[WidgetSync] Initialized successfully');
   }
@@ -115,6 +133,8 @@ class WidgetDataSyncManager {
         this.syncTasks(),
         this.syncNotes(),
         this.syncSections(),
+        this.syncFolders(),
+        this.syncStreak(),
       ]);
       console.log('[WidgetSync] All data synced');
     } catch (error) {
@@ -259,6 +279,43 @@ class WidgetDataSyncManager {
       this.notifyWidgetUpdate('sections');
     } catch (error) {
       console.error('[WidgetSync] Sections sync error:', error);
+    }
+  }
+
+  /**
+   * Sync folders to SharedPreferences
+   */
+  async syncFolders(): Promise<void> {
+    try {
+      const folders = await loadFolders();
+      const data = folders.slice(0, 20).map(f => ({
+        id: f.id,
+        name: f.name,
+        color: (f as any).color,
+      }));
+      await Preferences.set({ key: WIDGET_FOLDERS_KEY, value: JSON.stringify(data) });
+      this.notifyWidgetUpdate('folders');
+    } catch (error) {
+      console.error('[WidgetSync] Folders sync error:', error);
+    }
+  }
+
+  /**
+   * Sync streak data to SharedPreferences (key consumed by native StreaksWidget)
+   */
+  async syncStreak(): Promise<void> {
+    try {
+      const streak = await loadStreakData('task_completion_streak');
+      await Preferences.set({
+        key: WIDGET_STREAK_KEY,
+        value: JSON.stringify({
+          currentStreak: streak.currentStreak,
+          longestStreak: streak.longestStreak,
+        }),
+      });
+      this.notifyWidgetUpdate('streak');
+    } catch (error) {
+      console.error('[WidgetSync] Streak sync error:', error);
     }
   }
 
