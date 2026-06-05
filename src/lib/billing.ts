@@ -10,13 +10,13 @@ const IS_IOS = Capacitor.getPlatform() === 'ios';
 
 export const BILLING_CONFIG = IS_IOS ? {
   weekly: {
-    productId: 'com.flowist.app.weekly',
+    productId: 'com.flowist.app.week',
   },
   monthly: {
-    productId: 'com.flowist.app.monthly',
+    productId: 'com.flowist.app.month',
   },
   yearly: {
-    productId: 'com.flowist.app.yearly',
+    productId: 'com.flowist.app.year',
   },
 } as const : {
   weekly: {
