@@ -20,6 +20,8 @@ public abstract class BaseListWidget extends AppWidgetProvider {
     protected String nestedPath() { return null; }
     /** Deep link path opened by + button / list tap. */
     protected String openPath() { return "/"; }
+    /** Widget kind: note|task|section|folder — used for per-row deep links. */
+    protected String kind() { return ""; }
 
     @Override
     public void onUpdate(Context context, AppWidgetManager mgr, int[] ids) {
@@ -46,6 +48,7 @@ public abstract class BaseListWidget extends AppWidgetProvider {
         svc.putExtra(JsonListService.EXTRA_FIELD_TEXT, textField());
         if (metaField() != null) svc.putExtra(JsonListService.EXTRA_FIELD_META, metaField());
         if (nestedPath() != null) svc.putExtra(JsonListService.EXTRA_NESTED_PATH, nestedPath());
+        svc.putExtra(JsonListService.EXTRA_KIND, kind());
         svc.setData(Uri.parse(svc.toUri(Intent.URI_INTENT_SCHEME)));
         rv.setRemoteAdapter(R.id.widget_list, svc);
         rv.setEmptyView(R.id.widget_list, R.id.widget_empty);
@@ -61,6 +64,7 @@ public abstract class BaseListWidget extends AppWidgetProvider {
 
         // List item click template
         Intent tpl = new Intent(ctx, MainActivity.class);
+        tpl.setAction(Intent.ACTION_VIEW);
         tpl.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent tplPi = PendingIntent.getActivity(ctx, id + 1000, tpl,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);

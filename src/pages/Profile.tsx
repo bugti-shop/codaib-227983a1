@@ -18,6 +18,7 @@ import { ProfileStatsBanner } from '@/components/profile/ProfileStats';
 import { ProfileAchievements } from '@/components/profile/ProfileAchievements';
 import { ProfileSubscriptionCard } from '@/components/profile/ProfileSubscriptionCard';
 import { CountryFlagPickerSheet } from '@/components/CountryFlagPickerSheet';
+import { Capacitor } from '@capacitor/core';
 
 
 
@@ -30,6 +31,9 @@ export default function Profile() {
   const { user, isLoading: authLoading, isSigningIn, signIn, signOut } = useGoogleAuth();
   const { triggerSync, isSyncing } = useGoogleDriveSync();
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
+  // Apple Sign-In is iOS-only — Android has no native flow and the web OAuth
+  // round-trip 404s back into the app, so we hide the button on Android.
+  const isAndroid = Capacitor.getPlatform() === 'android';
 
   useEffect(() => {
     getSetting<number>('flowist_last_drive_sync', 0).then(setLastSyncTime);
@@ -472,6 +476,7 @@ export default function Profile() {
                   </>
                 )}
               </button>
+              {!isAndroid && (
               <button
                 onClick={async () => {
                   try {
@@ -507,6 +512,7 @@ export default function Profile() {
                   {t('profile.signInApple', 'Sign in with Apple')}
                 </span>
               </button>
+              )}
             </>
           )}
         </div>

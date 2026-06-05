@@ -4,8 +4,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 
-import androidx.core.view.WindowCompat;
-
 import com.getcapacitor.BridgeActivity;
 import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;
 
@@ -21,9 +19,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(GoogleAuth.class);
-
-        // Enable edge-to-edge rendering (required for Android 15+ / API 35)
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         super.onCreate(savedInstanceState);
         storeWidgetPath(getIntent());
     }
