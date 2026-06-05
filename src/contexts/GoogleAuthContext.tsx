@@ -77,12 +77,14 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
       if (detailUser !== undefined) {
         setUser(detailUser);
         setIsLoading(false);
+        setIsSigningIn(false);
         return;
       }
 
       const stored = await getStoredGoogleUser();
       setUser(stored);
       setIsLoading(false);
+      setIsSigningIn(false);
     };
 
     window.addEventListener('googleAuthStateChanged', handleAuthStateChanged);
@@ -181,7 +183,9 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     try {
       const googleUser = await signInWithGoogle(explicit);
       setUser(googleUser);
-      window.dispatchEvent(new CustomEvent('googleAuthStateChanged'));
+      window.dispatchEvent(
+        new CustomEvent('googleAuthStateChanged', { detail: { user: googleUser } }),
+      );
       window.dispatchEvent(new CustomEvent('syncReconnected'));
       return googleUser;
     } catch (err: any) {
