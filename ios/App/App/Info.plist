@@ -55,6 +55,8 @@
  <string>Flowist needs access to your camera to attach photos to your notes and tasks.</string>
  <key>NSFaceIDUsageDescription</key>
  <string>Flowist uses Face ID to unlock your private notes and protected content.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Flowist needs access to your microphone so you can record voice notes and attach voice memos to your tasks.</string>
  <key>NSPhotoLibraryAddUsageDescription</key>
  <string>Flowist needs permission to save exported notes and sketches to your photo library.</string>
  <key>NSPhotoLibraryUsageDescription</key>
