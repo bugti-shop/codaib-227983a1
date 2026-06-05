@@ -269,6 +269,43 @@ class WidgetDataSyncManager {
   }
 
   /**
+   * Sync folders to SharedPreferences
+   */
+  async syncFolders(): Promise<void> {
+    try {
+      const folders = await loadFolders();
+      const data = folders.slice(0, 20).map(f => ({
+        id: f.id,
+        name: f.name,
+        color: (f as any).color,
+      }));
+      await Preferences.set({ key: WIDGET_FOLDERS_KEY, value: JSON.stringify(data) });
+      this.notifyWidgetUpdate('folders');
+    } catch (error) {
+      console.error('[WidgetSync] Folders sync error:', error);
+    }
+  }
+
+  /**
+   * Sync streak data to SharedPreferences (key consumed by native StreaksWidget)
+   */
+  async syncStreak(): Promise<void> {
+    try {
+      const streak = await loadStreakData('task_completion_streak');
+      await Preferences.set({
+        key: WIDGET_STREAK_KEY,
+        value: JSON.stringify({
+          currentStreak: streak.currentStreak,
+          longestStreak: streak.longestStreak,
+        }),
+      });
+      this.notifyWidgetUpdate('streak');
+    } catch (error) {
+      console.error('[WidgetSync] Streak sync error:', error);
+    }
+  }
+
+  /**
    * Save widget configuration
    */
   async saveWidgetConfig(configs: WidgetConfig[]): Promise<void> {
