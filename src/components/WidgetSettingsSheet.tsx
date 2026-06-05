@@ -14,6 +14,7 @@ import { Note } from '@/types/note';
 import { toast } from 'sonner';
 import { Smartphone, RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Capacitor } from '@capacitor/core';
 
 interface WidgetSettingsSheetProps {
   isOpen: boolean;
@@ -156,6 +157,8 @@ export const WidgetSettingsSheet = ({ isOpen, onClose }: WidgetSettingsSheetProp
     return widgetConfigs.find(c => c.type === type)?.enabled ?? false;
   };
 
+  const isIOS = Capacitor.getPlatform() === 'ios';
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl flex flex-col">
@@ -170,16 +173,20 @@ export const WidgetSettingsSheet = ({ isOpen, onClose }: WidgetSettingsSheetProp
           <div className="space-y-6 pb-6">
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
               <p className="text-sm text-foreground">
-                {t('widgetSettings.infoBanner')}
+                {isIOS
+                  ? t('widgetSettings.infoBannerIOS', 'Configure which widgets are available for your home screen. After enabling widgets here, add them from your home screen widget gallery.')
+                  : t('widgetSettings.infoBanner')}
               </p>
-              <Button 
-                variant="link" 
-                className="p-0 h-auto mt-2 text-primary"
-                onClick={() => window.open('https://support.google.com/android/answer/9450271', '_blank')}
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                {t('widgetSettings.howToAddWidgets')}
-              </Button>
+              {!isIOS && (
+                <Button
+                  variant="link"
+                  className="p-0 h-auto mt-2 text-primary"
+                  onClick={() => window.open('https://support.google.com/android/answer/9450271', '_blank')}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  {t('widgetSettings.howToAddWidgets')}
+                </Button>
+              )}
             </div>
 
             <Button 
