@@ -14,13 +14,9 @@ const config: CapacitorConfig = {
       showSpinner: false,
       backgroundColor: '#ffffff',
     },
-    GoogleAuth: {
-      iosClientId: '425291387152-hg7uajqc20bd8t3qfb760gngbl2pd20i.apps.googleusercontent.com',
-      clientId: '425291387152-hg7uajqc20bd8t3qfb760gngbl2pd20i.apps.googleusercontent.com',
-      serverClientId: '425291387152-u06impgmsgg286jg7odo4f40fu6pjmb5.apps.googleusercontent.com',
-      scopes: ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata', 'https://www.googleapis.com/auth/drive.file'],
-      forceCodeForRefreshToken: true,
-    },
+    // Native Google + Apple sign-in are configured at runtime via
+    // @capgo/capacitor-social-login → SocialLogin.initialize() in
+    // src/utils/googleAuth.ts and src/utils/nativeAppleAuth.ts.
     Keyboard: {
       resize: 'none',
       resizeOnFullScreen: false,

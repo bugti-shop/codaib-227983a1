@@ -1,58 +1,91 @@
-## Maqsad
+# Migration: Native Auth → `@capgo/capacitor-social-login`
 
-Aisa build-time guard banayein jo har naye third-party Pod ke liye check kare ke uske paas `PrivacyInfo.xcprivacy` manifest hai ya nahi. Agar nahi mila aur woh Pod hamari known-missing list (GoogleSignIn, GTMSessionFetcher, GTMAppAuth, etc.) mein hai, to local patch automatically apply ho jaye. Agar koi naya unknown Pod bhi missing nikle, to **build fail** ho jaye ek clear message ke saath — taake App Store reject hone se pehle hi pata chal jaye.
+Replace the two separate native plugins with a single unified plugin for both Google and Apple sign-in on iOS and Android. Web flow, edge functions, Drive sync, refresh-token storage, and Supabase session handling remain **unchanged** — only the native bridge swaps out.
 
-## Pichli baar kon si files edit hui thin
+---
 
-1. **`ios/App/Podfile`** — `post_install` hook add hua tha jo 3 manifests (GoogleSignIn, GTMSessionFetcher, GTMAppAuth) ko `ios-privacy-patches/` se Pod folders mein copy karta hai, aur ek `[Flowist] Embed Privacy Manifest` shell script build phase add karta hai.
-2. **`ios/App/App/capacitor.config.json`** — GoogleAuth plugin config restore hui (iOS client IDs, scopes) taake Xcode simulator mein Google Sign-In kaam kare.
+## What stays the same (no risk)
 
-(Note: `ios-privacy-patches/` folder aur uski 3 `.xcprivacy` files pehle se mojood thin — woh edit nahi hui.)
+- **Public API** of `src/utils/googleAuth.ts` and `src/utils/nativeAppleAuth.ts` — every exported function keeps the same signature, so no caller (`Profile.tsx`, `OnboardingFlow.tsx`, `GoogleAuthContext.tsx`, `googleDriveSync.ts`, `SubscriptionContext.tsx`, `TodoSettings.tsx`) needs changes.
+- **Edge functions** `google-exchange` and `refresh-google-token` — unchanged. Same `serverAuthCode → refresh_token` exchange, same `user_refresh_tokens` table.
+- **Web** sign-in (Supabase `signInWithOAuth`) — untouched.
+- **Drive scopes** (`drive.appdata`, `drive.file`) — preserved.
+- **Backend Apple provider** — still uses "your own credentials" with `com.flowist.app` in allowed Client IDs (we already set this up).
 
-## Naya plan — Auto-detect + Auto-fail guard
+---
 
-### 1. `ios-privacy-patches/` mein audit script add karna
-Naya file: **`ios-privacy-patches/audit-privacy-manifests.sh`**
+## What changes
 
-Ye script `ios/App/Pods/` ke har installed Pod ko scan karega:
-- Agar Pod ke andar `PrivacyInfo.xcprivacy` mil gaya → OK.
-- Agar nahi mila lekin hamari **known-patchable list** mein hai (`GoogleSignIn`, `GTMSessionFetcher`, `GTMAppAuth`, plus future additions) → patch apply karke OK.
-- Agar nahi mila aur list mein bhi nahi hai → **error print + exit 1** (build fail), message ke saath:
-  > "Naya SDK '<PodName>' bina PrivacyInfo.xcprivacy ke install hua hai. Pehle uska manifest `ios-privacy-patches/` mein add karein aur known-list update karein, warna App Store ITMS-91061 dega."
+### 1. Packages
+- **Remove:** `@codetrix-studio/capacitor-google-auth`, `@capacitor-community/apple-sign-in`
+- **Add:** `@capgo/capacitor-social-login`
 
-### 2. `ios/App/Podfile` ke `post_install` hook ko upgrade karna
-- Existing 3-manifest copy logic same rahegi.
-- End mein audit script call hoga — agar fail kare to `pod install` hi error de de.
-- Ek **allowlist file** (`ios-privacy-patches/known-pods.txt`) read karega jisme Apple ki "commonly used third-party SDKs" list ke Pods hon. Sirf un Pods pe strict check hoga, taake har chhota helper pod build na todh de.
-
-### 3. Codemagic CI guard
-**`codemagic.yaml`** mein ek naya step add hoga (CocoaPods install ke baad):
-```yaml
-- name: Verify privacy manifests
-  script: bash ios-privacy-patches/audit-privacy-manifests.sh ios/App
+### 2. `src/utils/nativeAppleAuth.ts` (rewrite ~80 lines)
+Replace `@capacitor-community/apple-sign-in` dynamic import with:
+```ts
+import { SocialLogin } from '@capgo/capacitor-social-login';
+await SocialLogin.initialize({ apple: {} });
+const res = await SocialLogin.login({
+  provider: 'apple',
+  options: { scopes: ['email','name'], nonce: hashedNonce }
+});
+// res.result.idToken → supabase.auth.signInWithIdToken({ provider:'apple', token, nonce: rawNonce })
 ```
-Agar koi naya SDK missing manifest ke saath sneak in kar gaya, CI build wahin ruk jayegi — App Store tak pohanchne se pehle.
+Audience stays `com.flowist.app` (iOS bundle ID). All existing diagnostics, profile seeding, and error mapping are kept.
 
-### 4. `ios-privacy-patches/README.md` update
-Naya section: "Naya SDK add karte waqt kya karna hai" — 3 steps (manifest file banao, known-pods.txt mein add karo, run pod install).
+### 3. `src/utils/googleAuth.ts` (rewrite native section only, ~150 lines)
+Swap `loadNativeGoogle / ensureNativeInit / nativeSignIn / nativeSignOut / nativeRefresh / cancelNativeAutoPrompt` to use:
+```ts
+await SocialLogin.initialize({
+  google: {
+    iOSClientId: '<iOS clientId>',
+    webClientId: '<server clientId>',   // required for serverAuthCode
+    mode: 'offline',                     // returns serverAuthCode
+  }
+});
+const res = await SocialLogin.login({
+  provider: 'google',
+  options: { scopes: NATIVE_SCOPES, forceRefreshToken: true }
+});
+// → res.result.{ accessToken.token, idToken, serverAuthCode, profile }
+// Hand serverAuthCode to existing google-exchange edge function (unchanged)
+// Silent refresh: SocialLogin.refresh({ provider:'google' }) → new accessToken
+```
 
-## Agar same ITMS-91061 error dobara aaye to?
+### 4. Native platform files
+- **iOS Podfile** — remove the two old pods, add `CapgoCapacitorSocialLogin`.
+- **Android `MainActivity.java`** — remove `registerPlugin(GoogleAuth.class)` (capgo auto-registers via Capacitor plugin discovery).
+- **Android `capacitor.settings.gradle` + `capacitor.build.gradle`** — auto-regenerated by `npx cap sync`; nothing manual.
+- **Android `strings.xml`** — keep `server_client_id` (capgo reads the same key).
+- **`capacitor.config.ts`** — remove the `GoogleAuth` plugin block (capgo configures at runtime via `initialize`).
 
-Plan implement hone ke baad **scenarios**:
+### 5. No DB / no edge function changes
+The serverAuthCode payload format is identical, so `google-exchange` and `refresh-google-token` work as-is.
 
-| Scenario | Kya hoga |
+---
+
+## Risks & mitigations
+
+| Risk | Mitigation |
 |---|---|
-| Same 3 SDKs (Google*) ka manifest dobara missing | Podfile hook auto-copy kar dega — kuch karne ki zarurat nahi. |
-| Pod version upgrade ho gaya aur naya manifest bundle hai | Hook overwrite nahi karega agar pehle se mojood ho — ya hum apna patch use karein ge. Dono case mein App Store ko manifest milega. |
-| Naya third-party SDK add kiya (e.g. Firebase, Branch) | Audit script CI mein build fail kar dega `pod install` ya `Verify privacy manifests` step pe. Aap ko manifest banana padega — fir same flow. |
-| Manifest file corrupt/missing from repo | Hook gracefully skip karega + warning, audit fail karega. Repo se restore karna hoga. |
+| Existing signed-in users may need to tap "Sign in" once | Tokens stored in Capacitor Preferences still load; only the **native keychain** silent-refresh path resets. Backend `refresh_token` in `user_refresh_tokens` table still works → refresh succeeds without re-login. |
+| capgo Google `refresh()` API surface differs | Fallback chain already exists: native refresh → backend `refresh-google-token` (uses stored refresh_token). If `SocialLogin.refresh()` throws, backend path catches it. |
+| Apple nonce handling | capgo Apple plugin accepts the same `nonce` field; Supabase still receives the raw nonce. |
 
-**Bottom line:** Iske baad ITMS-91061 silently nahi aa sakta — ya to auto-fix hoga, ya CI fail hogi App Store submit hone se pehle.
+---
 
-## Files jo is plan mein change/create hongi
+## Verification steps (after you `npx cap sync ios` and run in Xcode)
 
-- **CREATE** `ios-privacy-patches/audit-privacy-manifests.sh`
-- **CREATE** `ios-privacy-patches/known-pods.txt`
-- **EDIT** `ios/App/Podfile` (audit call add)
-- **EDIT** `codemagic.yaml` (verify step add)
-- **EDIT** `ios-privacy-patches/README.md` (new-SDK workflow)
+1. **Apple sign-in** → tap button → Face ID → returns to app → Profile shows name/email. Console must log `[AppleAuth] Native Apple token exchanged for backend session`.
+2. **Google sign-in** → tap "Sign in with Google" in Profile → account picker → returns to app. Console must log `Successfully obtained refresh_token from serverAuthCode`.
+3. **Drive sync** → toggle a note → check Drive sync indicator → no `driveReauthNeeded` event.
+4. **Token refresh** → backgrounding the app for 60+ min and reopening should silently refresh without UI.
+
+---
+
+## Technical notes (for reviewers)
+
+- Indirect dynamic `import('@capgo/' + 'capacitor-social-login')` is used so Vite's web build does not try to resolve a native-only module.
+- `SocialLogin.initialize()` is idempotent and guarded by a module-level boolean (same pattern as the current `nativeInitialized` flag).
+- `SocialLogin.logout({ provider })` replaces the per-plugin `signOut()` calls.
+- iOS Apple flow returns `givenName`/`familyName` only on first authorization — existing one-shot profile-seeding logic in `nativeAppleAuth.ts` is preserved.

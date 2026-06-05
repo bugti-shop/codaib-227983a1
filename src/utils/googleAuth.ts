@@ -182,43 +182,87 @@ const refreshAccessTokenViaRefreshToken = async (
   };
 };
 
-// ── Native (Capgo Social Login → Supabase credential) ─────────────────────
+// ── Native (@capgo/capacitor-social-login → Supabase credential) ──────────
+
+const IOS_CLIENT_ID = '425291387152-hg7uajqc20bd8t3qfb760gngbl2pd20i.apps.googleusercontent.com';
+const SERVER_CLIENT_ID = '425291387152-u06impgmsgg286jg7odo4f40fu6pjmb5.apps.googleusercontent.com';
+
+type CapgoAccessToken = { token: string } | null;
+type CapgoGoogleOnline = {
+  responseType: 'online';
+  accessToken: CapgoAccessToken;
+  idToken: string | null;
+  profile: {
+    email: string | null;
+    familyName: string | null;
+    givenName: string | null;
+    id: string | null;
+    name: string | null;
+    imageUrl: string | null;
+  };
+};
+type CapgoLoginResult = {
+  provider: 'google';
+  result: CapgoGoogleOnline | { responseType: 'offline'; serverAuthCode: string };
+};
+type CapgoAuthCode = { jwt?: string; accessToken?: string };
+type CapgoSocialLogin = {
+  initialize: (opts: {
+    google?: {
+      iOSClientId?: string;
+      iOSServerClientId?: string;
+      webClientId?: string;
+      mode?: 'online' | 'offline';
+    };
+  }) => Promise<void>;
+  login: (opts: {
+    provider: 'google';
+    options: { scopes?: string[]; forceRefreshToken?: boolean; forcePrompt?: boolean };
+  }) => Promise<CapgoLoginResult>;
+  logout: (opts: { provider: 'google' }) => Promise<void>;
+  getAuthorizationCode: (opts: { provider: 'google' }) => Promise<CapgoAuthCode>;
+  isLoggedIn: (opts: { provider: 'google' }) => Promise<{ isLoggedIn: boolean }>;
+};
 
 let nativeInitialized = false;
 
-const loadNativeGoogle = async (): Promise<any> => {
-  // Use indirect specifier so Vite's web build doesn't try to resolve this native-only plugin.
-  const mod: any = await import(/* @vite-ignore */ ('@codetrix-studio/' + 'capacitor-google-auth') as string);
-  return mod.GoogleAuth || mod.default?.GoogleAuth || mod;
+const loadNativeGoogle = async (): Promise<CapgoSocialLogin> => {
+  // Indirect specifier so Vite's web build doesn't statically resolve a native-only path.
+  const mod = await import(
+    /* @vite-ignore */ ('@capgo/' + 'capacitor-social-login') as string
+  ) as { SocialLogin: CapgoSocialLogin; default?: { SocialLogin: CapgoSocialLogin } };
+  const SocialLogin = mod.SocialLogin ?? mod.default?.SocialLogin;
+  if (!SocialLogin) throw new Error('@capgo/capacitor-social-login is not available');
+  return SocialLogin;
 };
 
 const withTimeout = <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> =>
   new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
     promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); },
     );
   });
 
-const ensureNativeInit = async () => {
-  if (nativeInitialized) return;
-  const GoogleAuth = await loadNativeGoogle();
-  await GoogleAuth.initialize({
-    clientId: CLIENT_ID,
-    iosClientId: CLIENT_ID,
-    serverClientId: '425291387152-u06impgmsgg286jg7odo4f40fu6pjmb5.apps.googleusercontent.com',
-    scopes: NATIVE_SCOPES,
-    grantOfflineAccess: true,
-    forceCodeForRefreshToken: true,
-  });
+const ensureNativeInit = async (): Promise<CapgoSocialLogin> => {
+  const SocialLogin = await loadNativeGoogle();
+  if (nativeInitialized) return SocialLogin;
+  try {
+    await SocialLogin.initialize({
+      google: {
+        iOSClientId: IOS_CLIENT_ID,
+        iOSServerClientId: SERVER_CLIENT_ID,
+        webClientId: SERVER_CLIENT_ID,
+        mode: 'online', // online → returns accessToken + idToken + profile (we fetch serverAuthCode separately)
+      },
+    });
+  } catch (initErr) {
+    // initialize is idempotent across calls; ignore "already initialized" type errors.
+    console.warn('[Auth] SocialLogin.initialize warning:', initErr);
+  }
   nativeInitialized = true;
+  return SocialLogin;
 };
 
 /**
@@ -229,50 +273,21 @@ export const cancelNativeAutoPrompt = async (): Promise<void> => {
   if (nativeAutoPromptCancelled || !isNative()) return;
   nativeAutoPromptCancelled = true;
   try {
-    const GoogleAuth = await loadNativeGoogle();
-    await GoogleAuth.signOut();
+    const SocialLogin = await loadNativeGoogle();
+    await SocialLogin.logout({ provider: 'google' });
     console.log('[Auth] Cancelled native auto-sign-in prompt');
-  } catch (e) {
-    // Ignore — may fail if not initialized yet, which is fine
+  } catch {
+    // Ignore — may fail if not initialized yet, which is fine.
   }
 };
 
-
-const getNativeAccessToken = (result: any): string => {
-  const r = result?.result ?? result;
-  return (
-    r?.authentication?.accessToken ||
-    r?.accessToken?.token ||
-    r?.accessToken ||
-    result?.authentication?.accessToken ||
-    ''
-  );
-};
-
-const getNativeIdToken = (result: any): string => {
-  const r = result?.result ?? result;
-  return (
-    r?.authentication?.idToken ||
-    r?.idToken ||
-    result?.idToken ||
-    ''
-  );
-};
-
-const getNativeServerAuthCode = (result: any): string => {
-  const r = result?.result ?? result;
-  return (
-    r?.serverAuthCode ||
-    result?.serverAuthCode ||
-    r?.authorizationCode ||
-    ''
-  );
-};
-
-const extractNativeProfile = async (r: any, accessToken: string) => {
-  let email = r?.email || r?.profile?.email || '';
-  let name = r?.name || r?.profile?.name || '';
-  let picture = r?.imageUrl || r?.profile?.imageUrl || r?.profile?.picture || '';
+const extractNativeProfile = async (
+  online: CapgoGoogleOnline,
+  accessToken: string,
+) => {
+  let email = online.profile?.email || '';
+  let name = online.profile?.name || '';
+  let picture = online.profile?.imageUrl || '';
 
   if (!email && accessToken) {
     try {
@@ -291,21 +306,41 @@ const extractNativeProfile = async (r: any, accessToken: string) => {
 };
 
 const nativeSignIn = async (): Promise<GoogleUser> => {
-  await ensureNativeInit();
-  const GoogleAuth = await loadNativeGoogle();
+  const SocialLogin = await ensureNativeInit();
 
-  const result: any = await withTimeout<any>(
-    GoogleAuth.signIn(),
+  const response = await withTimeout<CapgoLoginResult>(
+    SocialLogin.login({
+      provider: 'google',
+      options: {
+        scopes: NATIVE_SCOPES,
+        forceRefreshToken: true,
+      },
+    }),
     NATIVE_SIGN_IN_TIMEOUT_MS,
     'Google Sign-In timed out. Please close the Google sheet and try again.',
   );
-  const r = result?.result ?? result;
 
-  const accessToken = getNativeAccessToken(result);
-  const idToken = getNativeIdToken(result);
-  const serverAuthCode = getNativeServerAuthCode(result);
+  const r = response.result;
+  if (r.responseType !== 'online') {
+    throw new Error('Unexpected offline response from Google Sign-In');
+  }
 
+  const accessToken = r.accessToken?.token || '';
+  const idToken = r.idToken || '';
   if (!accessToken) throw new Error('No access token received from Google Sign-In');
+
+  // Pull serverAuthCode separately — needed for the one-time refresh_token exchange.
+  let serverAuthCode = '';
+  try {
+    const code = await withTimeout(
+      SocialLogin.getAuthorizationCode({ provider: 'google' }),
+      8_000,
+      'getAuthorizationCode timed out',
+    );
+    serverAuthCode = code?.jwt || code?.accessToken || '';
+  } catch (e) {
+    console.warn('[Auth] getAuthorizationCode failed (refresh-token exchange will be skipped):', e);
+  }
 
   // Sign into Supabase with the Google ID token
   let supabaseUid: string | undefined;
@@ -332,7 +367,11 @@ const nativeSignIn = async (): Promise<GoogleUser> => {
   let refreshToken: string | undefined;
   if (serverAuthCode) {
     try {
-      const tokens = await withTimeout(exchangeAuthCodeForTokens(serverAuthCode), 12_000, 'Google token exchange timed out');
+      const tokens = await withTimeout(
+        exchangeAuthCodeForTokens(serverAuthCode),
+        12_000,
+        'Google token exchange timed out',
+      );
       refreshToken = tokens.refreshToken;
       console.log('Successfully obtained refresh_token from serverAuthCode');
     } catch (e) {
@@ -353,20 +392,21 @@ const nativeSignIn = async (): Promise<GoogleUser> => {
 
 const nativeSignOut = async () => {
   try {
-    const GoogleAuth = await loadNativeGoogle();
-    await GoogleAuth.signOut();
+    const SocialLogin = await loadNativeGoogle();
+    await SocialLogin.logout({ provider: 'google' });
   } catch {}
 };
-
-
 
 let nativeRefreshCooldownUntil = 0;
 const REFRESH_RETRY_COOLDOWN_MS = 2 * 60 * 1000;
 let nativeRefreshInProgress: Promise<GoogleUser> | null = null;
 
 /**
- * Native token refresh — uses refresh_token for fully silent HTTP-only refresh.
- * NO SocialLogin.login() call, NO account picker, NO redirect.
+ * Native token refresh — uses the stored refresh_token (via our backend
+ * Edge Function) for a fully silent HTTP-only refresh. NO native UI, NO
+ * account picker, NO redirect. The capgo plugin doesn't expose a useful
+ * `refresh()` return value, so we go straight to the backend path that
+ * already powers web silent refresh.
  */
 const nativeRefresh = async (): Promise<GoogleUser> => {
   if (nativeRefreshInProgress) return nativeRefreshInProgress;
@@ -385,65 +425,32 @@ const _nativeRefreshImpl = async (): Promise<GoogleUser> => {
 
   if (Date.now() < nativeRefreshCooldownUntil) return stored;
 
-  // ── Strategy 1: Native silent refresh via GoogleAuth.refresh() ──
-  // The Capacitor plugin keeps its own refresh_token in the native keychain
-  // and can mint a fresh access_token without ANY UI, network round-trip
-  // through our backend, or dependency on the user_refresh_tokens table.
+  // Refresh via backend using local or server-stored refresh token.
   try {
-    const GoogleAuth = await loadNativeGoogle();
-    if (typeof GoogleAuth.refresh === 'function') {
-      const result: any = await withTimeout(GoogleAuth.refresh(), 15_000, 'Native refresh timed out');
-      const newAccessToken =
-        result?.accessToken ||
-        result?.authentication?.accessToken ||
-        result?.access_token ||
-        '';
-      if (newAccessToken) {
-        const refreshedUser: GoogleUser = {
-          ...stored,
-          accessToken: newAccessToken,
-          accessTokenExpiresAt: Date.now() + ACCESS_TOKEN_TTL,
-          expiresAt: Date.now() + SESSION_TTL,
-        };
-        await setSetting('googleUser', refreshedUser);
-        console.log('[Auth] ✅ Native GoogleAuth.refresh() succeeded — silent token rotation');
-        return refreshedUser;
-      }
+    const { accessToken, expiresIn, newRefreshToken } =
+      await refreshAccessTokenViaRefreshToken(stored.refreshToken);
+
+    const finalRefreshToken = newRefreshToken || stored.refreshToken;
+    const refreshedUser: GoogleUser = {
+      ...stored,
+      accessToken,
+      refreshToken: finalRefreshToken,
+      accessTokenExpiresAt: Date.now() + (expiresIn * 1000) - 60000,
+      expiresAt: Date.now() + SESSION_TTL,
+    };
+    await setSetting('googleUser', refreshedUser);
+    console.log(`[Auth] ✅ Silent refresh succeeded — new token valid for ${expiresIn}s`);
+
+    if (newRefreshToken) {
+      saveRefreshTokenToSupabase(finalRefreshToken, stored.email).catch(() => {});
     }
+    return refreshedUser;
   } catch (err) {
-    console.warn('[Auth] Native GoogleAuth.refresh() failed, falling back to backend refresh:', err);
+    console.error('[Auth] ❌ refresh_token → Edge Function FAILED:', err);
   }
 
-  // ── Strategy 2: Refresh via backend using local or server-stored refresh token ──
-  try {
-      const { accessToken, expiresIn, newRefreshToken } = await refreshAccessTokenViaRefreshToken(stored.refreshToken);
-
-      const finalRefreshToken = newRefreshToken || stored.refreshToken;
-      const refreshedUser: GoogleUser = {
-        ...stored,
-        accessToken,
-        refreshToken: finalRefreshToken,
-        accessTokenExpiresAt: Date.now() + (expiresIn * 1000) - 60000,
-        expiresAt: Date.now() + SESSION_TTL,
-      };
-      await setSetting('googleUser', refreshedUser);
-      console.log(`[Auth] ✅ Silent refresh succeeded — new token valid for ${expiresIn}s, expires at ${new Date(refreshedUser.accessTokenExpiresAt).toLocaleTimeString()}`);
-
-      // Update backend copy if token rotated
-      if (newRefreshToken) {
-        saveRefreshTokenToSupabase(finalRefreshToken, stored.email).catch(() => {});
-      }
-
-      return refreshedUser;
-    } catch (err) {
-      console.error('[Auth] ❌ refresh_token → Edge Function FAILED:', err);
-      console.warn('[Auth] Will fall back to manual re-login');
-  }
-
-  // ── Strategy 2 REMOVED: No more SocialLogin.login() fallback ──
-  // On native, if refresh_token is missing or broken, we do NOT open the
-  // account picker automatically. Instead we emit reauth so the user can
-  // manually tap "Sign in with Google" in Profile when they want to.
+  // On native, if refresh_token is missing or broken, we do NOT auto-open the
+  // account picker. Emit reauth so the user can manually sign in from Profile.
   nativeRefreshCooldownUntil = Date.now() + REFRESH_RETRY_COOLDOWN_MS;
   console.warn('[Auth] Token refresh failed — emitting reauth, user must sign in manually');
   emitReauthNeeded();
