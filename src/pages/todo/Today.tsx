@@ -136,6 +136,22 @@ const Today = () => {
     sortedSections, toggleViewSectionCollapse, handleClearFilters,
   } = state;
 
+  // Widget deep-link: ?add=1 → auto-open the task input sheet (AddTask home-screen widget tap)
+  useEffect(() => {
+    const checkAddParam = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('add') === '1') {
+        setIsInputOpen(true);
+        params.delete('add');
+        const qs = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+      }
+    };
+    checkAddParam();
+    window.addEventListener('popstate', checkAddParam);
+    return () => window.removeEventListener('popstate', checkAddParam);
+  }, [setIsInputOpen]);
+
   useEffect(() => {
     const preloadViewChunks = () => {
       void kanbanFactory();
