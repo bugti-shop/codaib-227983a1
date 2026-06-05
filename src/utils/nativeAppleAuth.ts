@@ -53,6 +53,21 @@ const loadCapgo = async (): Promise<CapgoSocialLogin> => {
   return SocialLogin;
 };
 
+/**
+ * Eagerly initialize Apple provider at app startup on iOS.
+ * Capgo requires initialize() before login(), otherwise the native
+ * sheet opens but the JS callback never fires.
+ */
+export const initNativeApple = async (): Promise<void> => {
+  if (!isNativeApple()) return;
+  try {
+    await loadCapgo();
+    console.log('[AppleAuth] Native SocialLogin (Apple) initialized');
+  } catch (e) {
+    console.warn('[AppleAuth] Native SocialLogin init failed:', e);
+  }
+};
+
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
   try {
     const payload = token.split('.')[1];

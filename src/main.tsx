@@ -218,6 +218,16 @@ if (Capacitor.isNativePlatform()) {
 // Warm settings cache in background (non-blocking)
 warmSettingsCache().catch(() => {});
 
+// Initialize native social-login plugin EARLY on iOS/Android.
+// Capgo's SocialLogin requires initialize() before login() — otherwise the
+// native sheet may open but the JS callback never fires.
+if (Capacitor.isNativePlatform()) {
+  Promise.all([
+    import('./utils/googleAuth').then((m) => m.initNativeSocialLogin()),
+    import('./utils/nativeAppleAuth').then((m) => m.initNativeApple()),
+  ]).catch((e) => console.warn('[Boot] Native social-login init failed:', e));
+}
+
 // Defer ALL non-critical initialization until after first paint
 scheduleDeferred(async () => {
   try {
