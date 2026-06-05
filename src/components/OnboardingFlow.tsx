@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { m as motion, AnimatePresence } from 'framer-motion';
