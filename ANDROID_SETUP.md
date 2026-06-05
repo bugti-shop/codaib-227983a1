@@ -17,41 +17,26 @@ For Supabase OAuth (Google Sign-In via Supabase), ensure your redirect URL is wh
 
 ---
 
-## Google Sign-In (via @capgo/capacitor-social-login)
+## Google Sign-In (via @codetrix-studio/capacitor-google-auth)
 
-Google Sign-In is handled by the `@capgo/capacitor-social-login` Capacitor plugin.  
-This plugin still requires `google-services.json` for the Google Identity integration on Android.
+Google Sign-In is handled by the `@codetrix-studio/capacitor-google-auth` Capacitor plugin in this project.  
+Do **not** use `ee.forgr.capacitor.social.login.*` imports unless you fully migrate the app to `@capgo/capacitor-social-login`.
 
-### Step 1: Add `google-services.json`
+### Step 1: Confirm the plugin dependency
 
-1. Go to [Firebase Console](https://console.firebase.google.com/) → Project **npd-all-in-one-notepad**
-2. Click ⚙️ **Project Settings** → **General** tab
-3. Under **Your apps**, select your Android app (`nota.npd.com`)
-4. Download `google-services.json`
-5. Place it at: `android/app/google-services.json`
+**File:** `package.json`
 
-> **Note:** This file is only needed for Google Sign-In identity services, NOT for Firebase database or auth. The app does NOT use Firebase for any backend functionality.
-
-### Step 2: Add Google Services plugin
-
-**File:** `android/build.gradle` (project-level / root)
-
-```gradle
-buildscript {
-    dependencies {
-        // ... existing dependencies
-        classpath 'com.google.gms:google-services:4.4.2'
-    }
-}
+```json
+"@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4"
 ```
 
-**File:** `android/app/build.gradle` (app-level)
+After installing dependencies, run:
 
-Add at the **top** of the file (after existing `apply plugin` lines):
-
-```gradle
-apply plugin: 'com.google.gms.google-services'
+```bash
+npx cap sync android
 ```
+
+> `google-services.json` and `com.google.gms.google-services` are **not required** for this plugin setup.
 
 ---
 
