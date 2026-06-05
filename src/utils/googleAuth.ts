@@ -385,7 +385,36 @@ const _nativeRefreshImpl = async (): Promise<GoogleUser> => {
 
   if (Date.now() < nativeRefreshCooldownUntil) return stored;
 
-  // ── Strategy 1: Refresh via backend using local or server-stored refresh token ──
+  // ── Strategy 1: Native silent refresh via GoogleAuth.refresh() ──
+  // The Capacitor plugin keeps its own refresh_token in the native keychain
+  // and can mint a fresh access_token without ANY UI, network round-trip
+  // through our backend, or dependency on the user_refresh_tokens table.
+  try {
+    const GoogleAuth = await loadNativeGoogle();
+    if (typeof GoogleAuth.refresh === 'function') {
+      const result: any = await withTimeout(GoogleAuth.refresh(), 15_000, 'Native refresh timed out');
+      const newAccessToken =
+        result?.accessToken ||
+        result?.authentication?.accessToken ||
+        result?.access_token ||
+        '';
+      if (newAccessToken) {
+        const refreshedUser: GoogleUser = {
+          ...stored,
+          accessToken: newAccessToken,
+          accessTokenExpiresAt: Date.now() + ACCESS_TOKEN_TTL,
+          expiresAt: Date.now() + SESSION_TTL,
+        };
+        await setSetting('googleUser', refreshedUser);
+        console.log('[Auth] ✅ Native GoogleAuth.refresh() succeeded — silent token rotation');
+        return refreshedUser;
+      }
+    }
+  } catch (err) {
+    console.warn('[Auth] Native GoogleAuth.refresh() failed, falling back to backend refresh:', err);
+  }
+
+  // ── Strategy 2: Refresh via backend using local or server-stored refresh token ──
   try {
       const { accessToken, expiresIn, newRefreshToken } = await refreshAccessTokenViaRefreshToken(stored.refreshToken);
 
