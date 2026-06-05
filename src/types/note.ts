@@ -156,6 +156,11 @@ export interface TodoItem {
   subtasks?: TodoItem[];
   categoryId?: string;
   googleCalendarEventId?: string;
+  googleCalendarId?: string; // which Google calendar this came from (e.g. 'primary')
+  googleEventEtag?: string;  // for change detection / conflict resolution
+  googleEventUpdatedAt?: string; // ISO from Google for conflict resolution
+  googleEventSyncedAt?: number;  // last sync timestamp (ms)
+  googleEventSource?: 'google' | 'local'; // where it originated
   notificationIds?: number[];
   voiceRecording?: VoiceRecording;
   attachments?: TaskAttachment[]; // File attachments
