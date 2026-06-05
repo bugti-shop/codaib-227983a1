@@ -226,6 +226,10 @@ if (Capacitor.isNativePlatform()) {
     import('./utils/googleAuth').then((m) => m.initNativeSocialLogin()),
     import('./utils/nativeAppleAuth').then((m) => m.initNativeApple()),
   ]).catch((e) => console.warn('[Boot] Native social-login init failed:', e));
+
+  // Drain widget pending deep-link path EARLY so cold-start widget taps
+  // (?add=1, ?newNote=sticky, etc.) land on the right route before pages mount.
+  import('./utils/widgetDataSync').then((m) => m.widgetDataSync.initialize()).catch(() => {});
 }
 
 // Defer ALL non-critical initialization until after first paint
