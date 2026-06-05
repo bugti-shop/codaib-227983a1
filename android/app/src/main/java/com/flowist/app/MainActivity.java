@@ -1,4 +1,4 @@
-package nota.npd.com;
+package com.flowist.app;
 
 import android.os.Bundle;
 
