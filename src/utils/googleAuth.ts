@@ -814,6 +814,16 @@ export const forceRefreshDriveToken = async (): Promise<GoogleUser | null> => {
   const stored = await getStoredGoogleUser();
   if (!stored) return null;
 
+  // On native, prefer the plugin's silent refresh — works even when the
+  // refresh_token wasn't persisted server-side.
+  if (isNative()) {
+    try {
+      return await nativeRefresh();
+    } catch (err) {
+      console.warn('Native force refresh failed, falling back to backend:', err);
+    }
+  }
+
   try {
     const { accessToken, expiresIn, newRefreshToken } = await refreshAccessTokenViaRefreshToken(stored.refreshToken);
     const refreshedUser: GoogleUser = {
