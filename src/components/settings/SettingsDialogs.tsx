@@ -99,7 +99,7 @@ export const SettingsDialogs = (props: SettingsDialogsProps) => {
                 <li>{t('dialogs.deleteAccountNotes', 'Remove all your notes, tasks, and folders')}</li>
                 <li>{t('dialogs.deleteAccountSettings', 'Erase all app settings and preferences')}</li>
                 <li>{t('dialogs.deleteAccountSync', 'Disconnect cloud sync')}</li>
-                <li>{t('dialogs.deleteAccountSub', 'Your subscription (if any) will NOT be automatically cancelled — manage it via Google Play')}</li>
+                <li>{t('dialogs.deleteAccountSub', 'Your subscription (if any) will NOT be automatically cancelled — manage it from your device subscription settings.')}</li>
               </ul>
               <div className="pt-2">
                 <p className="text-sm font-medium mb-2">

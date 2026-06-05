@@ -2297,7 +2297,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               {t('onboarding.devicesSubtitle')}
             </motion.p>
             {renderMultiSelect(
-              [t('onboarding.deviceIPhone'), t('onboarding.deviceIPad'), t('onboarding.deviceMac'), t('onboarding.deviceAndroid'), t('onboarding.deviceWindows'), t('onboarding.deviceSingle')],
+              (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() === 'ios'
+                ? [t('onboarding.deviceIPhone'), t('onboarding.deviceIPad'), t('onboarding.deviceMac'), t('onboarding.deviceSingle')]
+                : [t('onboarding.deviceIPhone'), t('onboarding.deviceIPad'), t('onboarding.deviceMac'), t('onboarding.deviceAndroid'), t('onboarding.deviceWindows'), t('onboarding.deviceSingle')]),
               selectedDevices,
               (val: string) => {
                 triggerHaptic();
