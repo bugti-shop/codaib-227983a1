@@ -189,7 +189,13 @@ const WidgetRouteListener = () => {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    void widgetDataSync.initialize();
+    void widgetDataSync.initialize().then(() => {
+      const actual = `${window.location.pathname}${window.location.search}`;
+      const routed = `${location.pathname}${location.search}`;
+      if (actual.startsWith('/') && actual !== routed) {
+        navigate(actual, { replace: true });
+      }
+    });
   }, []);
 
   return null;
