@@ -6,4 +6,5 @@ public class TodayTasksWidget extends BaseListWidget {
     @Override protected String textField() { return "text"; }
     @Override protected String metaField() { return "dueDate"; }
     @Override protected String openPath() { return "/todo/today"; }
+    @Override protected String kind() { return "task"; }
 }

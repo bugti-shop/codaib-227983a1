@@ -5,4 +5,5 @@ public class StickyNotesWidget extends BaseListWidget {
     @Override protected String nestedPath() { return "sticky"; }
     @Override protected String textField() { return "title"; }
     @Override protected String openPath() { return "/notes"; }
+    @Override protected String kind() { return "note"; }
 }

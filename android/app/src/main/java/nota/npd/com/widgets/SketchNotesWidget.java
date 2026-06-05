@@ -5,4 +5,5 @@ public class SketchNotesWidget extends BaseListWidget {
     @Override protected String nestedPath() { return "sketch"; }
     @Override protected String textField() { return "title"; }
     @Override protected String openPath() { return "/notes"; }
+    @Override protected String kind() { return "note"; }
 }
