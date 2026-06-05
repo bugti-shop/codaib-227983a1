@@ -86,7 +86,7 @@ export const syncCalendarToTasks = async (): Promise<{
   updated: number;
   removed: number;
 }> => {
-  const token = await getValidGoogleAccessToken();
+  const token = await getValidAccessToken();
   if (!token) throw new Error('Not signed in to Google');
 
   const calendarId =
@@ -189,7 +189,7 @@ export const syncCalendarToTasks = async (): Promise<{
 export const pushTaskToCalendar = async (task: TodoItem): Promise<TodoItem> => {
   if (!task.dueDate) return task; // need a date to put on calendar
 
-  const token = await getValidGoogleAccessToken();
+  const token = await getValidAccessToken();
   if (!token) throw new Error('Not signed in to Google');
 
   const calendarId =
@@ -248,7 +248,7 @@ export const pushTaskToCalendar = async (task: TodoItem): Promise<TodoItem> => {
 
 export const deleteTaskFromCalendar = async (task: TodoItem): Promise<void> => {
   if (!task.googleCalendarEventId) return;
-  const token = await getValidGoogleAccessToken();
+  const token = await getValidAccessToken();
   if (!token) return;
   const calendarId =
     (await getSetting<string>(CALENDAR_ID_KEY, DEFAULT_CALENDAR_ID)) || DEFAULT_CALENDAR_ID;
