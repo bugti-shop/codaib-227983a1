@@ -68,21 +68,14 @@ workflows:
           sed -i '' 's/subscriptionPeriodUnit: SubscriptionPeriod.Unit)/subscriptionPeriodUnit: RevenueCat.SubscriptionPeriod.Unit)/g' "$FILE"
           echo "Patch applied!"
 
-      - name: Set Bundle ID and Build Number
+      - name: App Store Connect preflight & version bump
         script: |
+          set -e
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" ios/App/App/Info.plist
-          BUILD_NUMBER=$(($(date +%s) / 100))
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
-          echo "Build number: $BUILD_NUMBER"
 
-      - name: Bump marketing version
-        script: |
-          # App Store rejects re-using 1.0 — bump patch to days since 2026-01-01
-          PATCH=$(( ( $(date +%s) - 1767225600 ) / 86400 ))
-          NEW_VERSION="1.0.${PATCH}"
-          sed -i '' "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = ${NEW_VERSION};/g" ios/App/App.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${NEW_VERSION}" ios/App/App/Info.plist 2>/dev/null || true
-          echo "Marketing version: $NEW_VERSION"
+          # Delegate version/build computation to a helper script so the YAML
+          # block stays clean (no embedded multi-line Python).
+          bash scripts/ci/asc-preflight.sh
 
       - name: Set CODE_SIGN_ENTITLEMENTS in Xcode project
         script: |
