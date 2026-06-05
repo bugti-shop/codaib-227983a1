@@ -68,6 +68,27 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
+  // Native Apple sign-in happens outside this context, so listen for the
+  // shared auth-change event and reload the stored signed-in profile instantly.
+  useEffect(() => {
+    const handleAuthStateChanged = async (event: Event) => {
+      const detailUser = (event as CustomEvent<{ user?: GoogleUser | null }>).detail?.user;
+
+      if (detailUser !== undefined) {
+        setUser(detailUser);
+        setIsLoading(false);
+        return;
+      }
+
+      const stored = await getStoredGoogleUser();
+      setUser(stored);
+      setIsLoading(false);
+    };
+
+    window.addEventListener('googleAuthStateChanged', handleAuthStateChanged);
+    return () => window.removeEventListener('googleAuthStateChanged', handleAuthStateChanged);
+  }, []);
+
   // Listen to Supabase auth state changes + auto-refresh Drive token on TOKEN_REFRESHED
   useEffect(() => {
     const unsubscribe = onSupabaseAuthStateChanged(
