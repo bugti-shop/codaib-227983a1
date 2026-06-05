@@ -7,6 +7,61 @@ import { saveUserProfile, loadUserProfile } from '@/hooks/useUserProfile';
 export const isNativeApple = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
+type AppleSignInOptions = {
+  clientId: string;
+  redirectURI: string;
+  scopes: string;
+  state: string;
+  nonce: string;
+};
+
+type AppleCredential = {
+  identityToken?: string;
+  email?: string | null;
+  givenName?: string | null;
+  familyName?: string | null;
+};
+
+type AppleSignInResult = AppleCredential & { response?: AppleCredential };
+type AppleAuthorizer = { authorize: (options: AppleSignInOptions) => Promise<AppleSignInResult> };
+type AppleSignInModule = Partial<AppleAuthorizer> & {
+  SignInWithApple?: AppleAuthorizer;
+  default?: { SignInWithApple?: AppleAuthorizer };
+};
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const getAudience = (claims: Record<string, unknown> | null) => {
+  const audience = claims?.aud;
+  if (typeof audience === 'string') return audience;
+  if (Array.isArray(audience)) return audience.filter((item) => typeof item === 'string').join(', ');
+  return undefined;
+};
+
+const explainAppleExchangeError = (message: string, audience?: string) => {
+  const lower = message.toLowerCase();
+  if (lower.includes('aud') || lower.includes('audience') || lower.includes('client id')) {
+    return `Apple token audience is "${audience || 'unknown'}", but the backend is not accepting it. Add this Bundle ID to Apple provider allowed Client IDs and use your own Apple credentials, not Managed mode.`;
+  }
+  if (lower.includes('nonce')) {
+    return 'Apple nonce verification failed. Please try again once; if it repeats, the native token exchange configuration is rejecting the nonce.';
+  }
+  if (lower.includes('provider') || lower.includes('disabled')) {
+    return 'Apple sign-in is not enabled correctly in backend Auth settings.';
+  }
+  return message || 'Apple sign-in was not accepted by the backend.';
+};
+
 const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string): Promise<T> =>
   new Promise((resolve, reject) => {
     const id = setTimeout(() => reject(new Error(msg)), ms);
@@ -21,10 +76,11 @@ const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string): Promise<T> =>
  * for a Supabase session. Returns the Supabase user on success.
  */
 export const signInWithAppleNative = async () => {
-  const mod: any = await import(
+  const mod = await import(
     /* @vite-ignore */ ('@capacitor-community/' + 'apple-sign-in') as string
-  );
-  const SignInWithApple = mod.SignInWithApple || mod.default?.SignInWithApple || mod;
+  ) as AppleSignInModule;
+  const SignInWithApple = mod.SignInWithApple ?? mod.default?.SignInWithApple ?? (mod.authorize ? mod as AppleAuthorizer : null);
+  if (!SignInWithApple) throw new Error('Apple Sign-In plugin is not available');
 
   // Supabase requires the RAW nonce passed back; the native request should send the SHA-256 hash.
   const rawNonce = crypto.randomUUID();
@@ -46,9 +102,19 @@ export const signInWithAppleNative = async () => {
     90_000,
     'Apple Sign-In timed out. Please try again.',
   );
-  const r: any = (response as any)?.response ?? response;
+  const r = response.response ?? response;
   const identityToken: string | undefined = r?.identityToken;
   if (!identityToken) throw new Error('No identity token returned from Apple Sign-In');
+
+  const claims = decodeJwtPayload(identityToken);
+  const audience = getAudience(claims);
+  console.info('[AppleAuth] Native Apple token received', {
+    audience,
+    issuer: claims?.iss,
+    expiresAt: claims?.exp,
+    hasEmail: Boolean(claims?.email),
+    hasNonce: Boolean(claims?.nonce),
+  });
 
   const { data, error } = await withTimeout(
     supabase.auth.signInWithIdToken({
@@ -63,11 +129,10 @@ export const signInWithAppleNative = async () => {
   if (error) {
     console.error('[AppleAuth] signInWithIdToken error:', error.message, error);
     // Surface a useful message rather than an empty {}
-    throw new Error(
-      error.message ||
-        'Apple sign-in was not accepted by the server. Please ensure the bundle ID is allowed in your auth provider.',
-    );
+    throw new Error(explainAppleExchangeError(error.message, audience));
   }
+
+  console.info('[AppleAuth] Native Apple token exchanged for backend session');
 
   if (data?.user) {
     // Per Apple Sign In HIG: use the name Apple provides on first auth.
@@ -87,7 +152,9 @@ export const signInWithAppleNative = async () => {
     if (appleName && !data.user.user_metadata?.full_name) {
       try {
         await supabase.auth.updateUser({ data: { full_name: appleName, name: appleName } });
-      } catch {}
+      } catch (profileError) {
+        console.warn('[AppleAuth] Could not persist Apple display name', profileError);
+      }
     }
 
     // Seed the local user profile so Profile screen shows the name immediately.
@@ -98,7 +165,9 @@ export const signInWithAppleNative = async () => {
           avatarUrl: existingProfile?.avatarUrl || '',
           coverUrl: existingProfile?.coverUrl || '',
         });
-      } catch {}
+      } catch (profileError) {
+        console.warn('[AppleAuth] Could not seed local Apple profile', profileError);
+      }
     }
 
     await setSetting('googleUser', {
