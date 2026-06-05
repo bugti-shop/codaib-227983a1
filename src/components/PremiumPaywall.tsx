@@ -265,7 +265,7 @@ function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> })
    ═══════════════════════════════════════════ */
 function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> }) {
   const { t, selectedPlan, setSelectedPlan, isPurchasing, PLANS, currentPlan, handlePurchase, hasUsedTrial, isNewFreeUser, isPro, closePaywall, softLimitMessage } = logic;
-  const canDismiss = isNewFreeUser || isPro;
+  const canDismiss = true;
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col" style={{ paddingTop: 'calc(var(--safe-top, 0px) + 12px)', paddingBottom: 'max(var(--safe-bottom, 0px), 12px)', background: 'hsl(0 0% 100%)', color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>
