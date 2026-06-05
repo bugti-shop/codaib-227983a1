@@ -33,7 +33,7 @@ const REVENUECAT_API_KEY =
   Capacitor.getPlatform() === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
 
 // Entitlement identifier
-const ENTITLEMENT_ID = 'npd Pro';
+const ENTITLEMENT_ID = 'Pro';
 
 // Product identifiers — platform-aware (iOS uses App Store IDs; Android uses Play base:offer IDs)
 const IS_IOS = Capacitor.getPlatform() === 'ios';

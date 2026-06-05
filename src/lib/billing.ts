@@ -3,7 +3,7 @@
 import { Capacitor } from '@capacitor/core';
 
 // Entitlement identifier - matches RevenueCat dashboard
-export const ENTITLEMENT_ID = 'npd Pro';
+export const ENTITLEMENT_ID = 'Pro';
 
 // Product identifiers - matches RevenueCat dashboard and store products
 const IS_IOS = Capacitor.getPlatform() === 'ios';

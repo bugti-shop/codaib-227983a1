@@ -50,7 +50,7 @@ export const useSubscriptionExpiry = () => {
     if (isLoading || hasCheckedRef.current || !isPro || !customerInfo) return;
     hasCheckedRef.current = true;
 
-    const entitlement = customerInfo.entitlements?.active?.['npd Pro'];
+    const entitlement = customerInfo.entitlements?.active?.['Pro'];
     if (!entitlement?.expirationDate) return;
 
     const expirationDate = new Date(entitlement.expirationDate);
