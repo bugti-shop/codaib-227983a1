@@ -1,4 +1,5 @@
-// Native Apple Sign-In for iOS (Capacitor). Falls back to web OAuth on non-native.
+// Native Apple Sign-In for iOS (Capacitor) via @capgo/capacitor-social-login.
+// Falls back to web OAuth on non-native platforms.
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import { setSetting } from '@/utils/settingsStorage';
@@ -7,26 +8,49 @@ import { saveUserProfile, loadUserProfile } from '@/hooks/useUserProfile';
 export const isNativeApple = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
-type AppleSignInOptions = {
-  clientId: string;
-  redirectURI: string;
-  scopes: string;
-  state: string;
-  nonce: string;
+type CapgoSocialLogin = {
+  initialize: (opts: { apple?: Record<string, unknown> }) => Promise<void>;
+  login: (opts: {
+    provider: 'apple';
+    options: { scopes?: string[]; nonce?: string };
+  }) => Promise<{
+    provider: 'apple';
+    result: {
+      idToken: string | null;
+      accessToken?: { token: string } | null;
+      profile: {
+        user: string;
+        email: string | null;
+        givenName: string | null;
+        familyName: string | null;
+      };
+      authorizationCode?: string;
+    };
+  }>;
+  logout: (opts: { provider: 'apple' }) => Promise<void>;
 };
 
-type AppleCredential = {
-  identityToken?: string;
-  email?: string | null;
-  givenName?: string | null;
-  familyName?: string | null;
-};
+type CapgoModule = { SocialLogin: CapgoSocialLogin; default?: { SocialLogin: CapgoSocialLogin } };
 
-type AppleSignInResult = AppleCredential & { response?: AppleCredential };
-type AppleAuthorizer = { authorize: (options: AppleSignInOptions) => Promise<AppleSignInResult> };
-type AppleSignInModule = Partial<AppleAuthorizer> & {
-  SignInWithApple?: AppleAuthorizer;
-  default?: { SignInWithApple?: AppleAuthorizer };
+let capgoInitialized = false;
+const loadCapgo = async (): Promise<CapgoSocialLogin> => {
+  const mod = await import(
+    /* @vite-ignore */ ('@capgo/' + 'capacitor-social-login') as string
+  ) as CapgoModule;
+  const SocialLogin = mod.SocialLogin ?? mod.default?.SocialLogin;
+  if (!SocialLogin) throw new Error('@capgo/capacitor-social-login is not available');
+  if (!capgoInitialized) {
+    try {
+      // On iOS native sheet handles everything — no clientId needed.
+      // Android would need a Services ID + redirectUrl; we only run Apple on iOS today.
+      await SocialLogin.initialize({ apple: {} });
+    } catch (initErr) {
+      // initialize is idempotent — ignore "already initialized" style errors.
+      console.warn('[AppleAuth] SocialLogin.initialize warning:', initErr);
+    }
+    capgoInitialized = true;
+  }
+  return SocialLogin;
 };
 
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
@@ -72,15 +96,12 @@ const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string): Promise<T> =>
   });
 
 /**
- * Run native "Sign in with Apple" on iOS and exchange the identity token
- * for a Supabase session. Returns the Supabase user on success.
+ * Run native "Sign in with Apple" on iOS via @capgo/capacitor-social-login
+ * and exchange the identity token for a Supabase session. Returns the
+ * Supabase user on success.
  */
 export const signInWithAppleNative = async () => {
-  const mod = await import(
-    /* @vite-ignore */ ('@capacitor-community/' + 'apple-sign-in') as string
-  ) as AppleSignInModule;
-  const SignInWithApple = mod.SignInWithApple ?? mod.default?.SignInWithApple ?? (mod.authorize ? mod as AppleAuthorizer : null);
-  if (!SignInWithApple) throw new Error('Apple Sign-In plugin is not available');
+  const SocialLogin = await loadCapgo();
 
   // Supabase requires the RAW nonce passed back; the native request should send the SHA-256 hash.
   const rawNonce = crypto.randomUUID();
@@ -89,21 +110,19 @@ export const signInWithAppleNative = async () => {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  const options = {
-    clientId: 'com.flowist.app', // iOS bundle ID = audience of the identity token
-    redirectURI: 'https://www.flowist.me/~oauth/callback',
-    scopes: 'email name',
-    state: '',
-    nonce: hashedNonce,
-  };
-
   const response = await withTimeout(
-    SignInWithApple.authorize(options),
+    SocialLogin.login({
+      provider: 'apple',
+      options: {
+        scopes: ['email', 'name'],
+        nonce: hashedNonce,
+      },
+    }),
     90_000,
     'Apple Sign-In timed out. Please try again.',
   );
-  const r = response.response ?? response;
-  const identityToken: string | undefined = r?.identityToken;
+  const r = response.result;
+  const identityToken: string | null | undefined = r?.idToken;
   if (!identityToken) throw new Error('No identity token returned from Apple Sign-In');
 
   const claims = decodeJwtPayload(identityToken);
@@ -138,7 +157,7 @@ export const signInWithAppleNative = async () => {
     // Per Apple Sign In HIG: use the name Apple provides on first auth.
     // Apple only returns givenName/familyName on the FIRST sign-in for an Apple ID.
     const appleName =
-      [r?.givenName, r?.familyName].filter(Boolean).join(' ').trim();
+      [r?.profile?.givenName, r?.profile?.familyName].filter(Boolean).join(' ').trim();
     const existingProfile = await loadUserProfile().catch(() => null);
     const displayName =
       appleName ||
@@ -171,7 +190,7 @@ export const signInWithAppleNative = async () => {
     }
 
     await setSetting('googleUser', {
-      email: data.user.email || r?.email || '',
+      email: data.user.email || r?.profile?.email || '',
       name: displayName,
       picture: '',
       accessToken: '',
