@@ -261,6 +261,12 @@ scheduleDeferred(async () => {
     initializeStreakNotifications().catch(console.warn);
     initializeSmartNotifications().catch(console.warn);
     initializeSmartNudges().catch(console.warn);
+
+    // Home-screen widget data sync + deep-link drain (Android)
+    try {
+      const { widgetDataSync } = await import('./utils/widgetDataSync');
+      widgetDataSync.initialize().catch(() => {});
+    } catch {}
     
 
     // Configure status bar
