@@ -161,6 +161,8 @@ package nota.npd.com;
 import android.content.Intent;
 import android.os.Bundle;
 
+import androidx.core.view.WindowCompat;
+
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
 
@@ -171,9 +173,17 @@ import ee.forgr.capacitor.social.login.ModifiedMainActivityForSocialLoginPlugin;
 /**
  * Main Activity for Npd App
  * - Google Sign-In via Capgo Social Login
+ * - Edge-to-edge layout (Android 15+ / API 35)
  * - Backend: Supabase (no Firebase)
  */
 public class MainActivity extends BridgeActivity implements ModifiedMainActivityForSocialLoginPlugin {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        // Enable edge-to-edge rendering (required for Android 15+ / API 35)
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        super.onCreate(savedInstanceState);
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
