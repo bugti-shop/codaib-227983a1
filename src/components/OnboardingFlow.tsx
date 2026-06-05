@@ -1114,8 +1114,18 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     } catch (e) {
       console.warn('[Onboarding] Failed to persist skip state:', e);
     }
-    try { openPaywall('onboarding_skip'); } catch {}
+    // Mark as new free user so the paywall opens in SOFT mode (close ❌ enabled,
+    // limited free access to app features).
+    try {
+      await setSetting('flowist_new_user', true);
+      try { localStorage.setItem('flowist_new_user', 'true'); } catch {}
+      window.dispatchEvent(new CustomEvent('flowistNewFreeUserChanged', { detail: { value: true } }));
+    } catch (e) {
+      console.warn('[Onboarding] Could not mark as new free user on skip:', e);
+    }
     onComplete();
+    // Delay paywall slightly to ensure isNewFreeUser state propagates before render
+    setTimeout(() => { try { openPaywall('onboarding_skip'); } catch {} }, 400);
   }, [onComplete, openPaywall]);
 
   // Floating Skip button mounted directly on document.body so it overlays
