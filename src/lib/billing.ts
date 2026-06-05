@@ -6,7 +6,19 @@ import { Capacitor } from '@capacitor/core';
 export const ENTITLEMENT_ID = 'npd Pro';
 
 // Product identifiers - matches RevenueCat dashboard and store products
-export const BILLING_CONFIG = {
+const IS_IOS = Capacitor.getPlatform() === 'ios';
+
+export const BILLING_CONFIG = IS_IOS ? {
+  weekly: {
+    productId: 'com.flowist.app.weekly',
+  },
+  monthly: {
+    productId: 'com.flowist.app.monthly',
+  },
+  yearly: {
+    productId: 'com.flowist.app.yearly',
+  },
+} as const : {
   weekly: {
     productId: 'nnppd_weekly:nnnpd-weekly',
     basePlanId: 'nnnpd-weekly',

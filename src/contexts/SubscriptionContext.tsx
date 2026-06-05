@@ -636,9 +636,9 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const productIdMap: Record<ProductType, string> = {
-        weekly: 'nnppd_weekly',
-        monthly: 'npd_mo',
-        yearly: 'npd_yr',
+        weekly: IS_IOS ? 'com.flowist.app.weekly' : 'nnppd_weekly',
+        monthly: IS_IOS ? 'com.flowist.app.monthly' : 'npd_mo',
+        yearly: IS_IOS ? 'com.flowist.app.yearly' : 'npd_yr',
       };
 
       // Try finding by package type first, then by product identifier across ALL offerings
