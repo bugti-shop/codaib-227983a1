@@ -77,6 +77,7 @@ const WIDGET_STREAK_KEY = `streak_data`;
 class WidgetDataSyncManager {
   private static instance: WidgetDataSyncManager;
   private syncInProgress = false;
+  private initialized = false;
 
   private constructor() {}
 
@@ -95,6 +96,11 @@ class WidgetDataSyncManager {
       console.log('[WidgetSync] Not on native platform, skipping');
       return;
     }
+    if (this.initialized) {
+      await this.drainPendingWidgetPath();
+      return;
+    }
+    this.initialized = true;
 
     // Handle widget deep-link path (set by native MainActivity on widget tap).
     // Drain once on startup AND every time the app resumes — when the app is
