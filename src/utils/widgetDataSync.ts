@@ -98,11 +98,25 @@ class WidgetDataSyncManager {
     // Initial sync
     await this.syncAllData();
 
+    // Handle widget deep-link path (set by native MainActivity on widget tap)
+    try {
+      const { value } = await Preferences.get({ key: 'widget_pending_path' });
+      if (value) {
+        await Preferences.remove({ key: 'widget_pending_path' });
+        if (typeof window !== 'undefined' && value !== window.location.pathname) {
+          window.history.pushState({}, '', value);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+      }
+    } catch {}
+
     // Listen for data changes
     window.addEventListener('notesUpdated', () => this.syncNotes());
     window.addEventListener('todoItemsChanged', () => this.syncTasks());
     window.addEventListener('tasksUpdated', () => this.syncTasks());
     window.addEventListener('sectionsUpdated', () => this.syncSections());
+    window.addEventListener('foldersUpdated', () => this.syncFolders());
+    window.addEventListener('streakUpdated', () => this.syncStreak());
 
     console.log('[WidgetSync] Initialized successfully');
   }
