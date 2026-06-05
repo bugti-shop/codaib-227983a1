@@ -25,9 +25,8 @@
             android:layout_height="32dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:background="@drawable/widget_plus_bg"
-            android:src="@android:drawable/ic_input_add"
-            android:tint="@color/widget_header_text"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_widget_plus"
             android:contentDescription="Open" />
     </RelativeLayout>
 
