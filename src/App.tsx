@@ -32,6 +32,7 @@ import { useSubscriptionExpiry } from "@/hooks/useSubscriptionExpiry";
 const AppLockScreen = lazy(() => import("@/components/AppLockScreen").then(m => ({ default: m.AppLockScreen })));
 import { useNotificationListener } from "@/hooks/useNotificationListener";
 import { widgetDataSync } from "@/utils/widgetDataSync";
+import { WidgetAddTask, WidgetNewSticky, WidgetNewLined, WidgetNewRegular, WidgetNewSketch } from "@/pages/WidgetEntry";
 
 const StreakMilestoneCelebration = lazy(() => import("@/components/StreakMilestoneCelebration").then(m => ({ default: m.StreakMilestoneCelebration })));
 const StreakTierCelebration = lazy(() => import("@/components/StreakTierCelebration").then(m => ({ default: m.StreakTierCelebration })));
@@ -258,6 +259,11 @@ const AppRoutes = () => {
             
             <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
             <Route path="/admin/onboarding" element={<AdminOnboarding />} />
+            <Route path="/w/add-task" element={<WidgetAddTask />} />
+            <Route path="/w/new/sticky" element={<WidgetNewSticky />} />
+            <Route path="/w/new/lined" element={<WidgetNewLined />} />
+            <Route path="/w/new/regular" element={<WidgetNewRegular />} />
+            <Route path="/w/new/sketch" element={<WidgetNewSketch />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
