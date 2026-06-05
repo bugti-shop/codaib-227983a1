@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
+import { App as CapApp } from '@capacitor/app';
 import { loadNotesFromDB } from './noteStorage';
 import { loadTodoItems } from './todoItemsStorage';
 import { getSetting, setSetting } from './settingsStorage';
@@ -98,16 +99,18 @@ class WidgetDataSyncManager {
     // Initial sync
     await this.syncAllData();
 
-    // Handle widget deep-link path (set by native MainActivity on widget tap)
+    // Handle widget deep-link path (set by native MainActivity on widget tap).
+    // Drain once on startup AND every time the app resumes — when the app is
+    // already running, onCreate doesn't fire again so we must also listen for
+    // appStateChange/resume to pick up the pending path written by onNewIntent.
+    await this.drainPendingWidgetPath();
     try {
-      const { value } = await Preferences.get({ key: 'widget_pending_path' });
-      if (value) {
-        await Preferences.remove({ key: 'widget_pending_path' });
-        if (typeof window !== 'undefined' && value !== window.location.pathname) {
-          window.history.pushState({}, '', value);
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }
-      }
+      CapApp.addListener('appStateChange', (s: { isActive: boolean }) => {
+        if (s.isActive) this.drainPendingWidgetPath().catch(() => {});
+      });
+      CapApp.addListener('resume', () => {
+        this.drainPendingWidgetPath().catch(() => {});
+      });
     } catch {}
 
     // Listen for data changes
@@ -119,6 +122,21 @@ class WidgetDataSyncManager {
     window.addEventListener('streakUpdated', () => this.syncStreak());
 
     console.log('[WidgetSync] Initialized successfully');
+  }
+
+  private async drainPendingWidgetPath(): Promise<void> {
+    try {
+      const { value } = await Preferences.get({ key: 'widget_pending_path' });
+      if (!value) return;
+      await Preferences.remove({ key: 'widget_pending_path' });
+      if (typeof window !== 'undefined') {
+        const current = window.location.pathname + window.location.search;
+        if (value !== current) {
+          window.history.pushState({}, '', value);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+      }
+    } catch {}
   }
 
   /**
