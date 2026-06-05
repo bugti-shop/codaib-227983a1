@@ -31,6 +31,7 @@ import { useCertificateToasts } from "@/hooks/useCertificateToasts";
 import { useSubscriptionExpiry } from "@/hooks/useSubscriptionExpiry";
 const AppLockScreen = lazy(() => import("@/components/AppLockScreen").then(m => ({ default: m.AppLockScreen })));
 import { useNotificationListener } from "@/hooks/useNotificationListener";
+import { widgetDataSync } from "@/utils/widgetDataSync";
 
 const StreakMilestoneCelebration = lazy(() => import("@/components/StreakMilestoneCelebration").then(m => ({ default: m.StreakMilestoneCelebration })));
 const StreakTierCelebration = lazy(() => import("@/components/StreakTierCelebration").then(m => ({ default: m.StreakTierCelebration })));
@@ -171,6 +172,35 @@ const TourNavigationListener = () => {
   return null;
 };
 
+const WidgetRouteListener = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleWidgetRoute = (event: CustomEvent<{ path: string }>) => {
+      const path = event.detail?.path;
+      if (!path?.startsWith('/')) return;
+      const target = `${location.pathname}${location.search}`;
+      if (path !== target) navigate(path, { replace: false });
+    };
+    window.addEventListener('widgetRouteOpen', handleWidgetRoute as EventListener);
+    return () => window.removeEventListener('widgetRouteOpen', handleWidgetRoute as EventListener);
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    void widgetDataSync.initialize().then(() => {
+      const actual = `${window.location.pathname}${window.location.search}`;
+      const routed = `${location.pathname}${location.search}`;
+      if (actual.startsWith('/') && actual !== routed) {
+        navigate(actual, { replace: true });
+      }
+    });
+  }, []);
+
+  return null;
+};
+
 // Root redirect component that redirects to Todo dashboard by default
 const RootRedirect = () => {
   const navigate = useNavigate();
@@ -207,6 +237,7 @@ const AppRoutes = () => {
         <NavigationLoader />
         <DashboardTracker />
         <TourNavigationListener />
+        <WidgetRouteListener />
           <Suspense fallback={<BrandedFallback />}>
           <Routes>
             <Route path="/" element={<RootRedirect />} />

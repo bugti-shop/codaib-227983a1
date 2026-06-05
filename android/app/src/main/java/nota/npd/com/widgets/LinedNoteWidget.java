@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.widget.RemoteViews;
 
 import nota.npd.com.MainActivity;
@@ -15,10 +16,13 @@ public class LinedNoteWidget extends AppWidgetProvider {
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         for (int id : ids) {
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.widget_lined_note);
+            String path = "/notesdashboard?newNote=lined";
             Intent open = new Intent(ctx, MainActivity.class);
-            open.putExtra("widget_path", "/notesdashboard?newNote=lined");
+            open.setAction("nota.npd.com.widgets.LINED_NOTE_" + id);
+            open.setData(Uri.parse("codaib://widget" + path));
+            open.putExtra("widget_path", path);
             open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            PendingIntent pi = PendingIntent.getActivity(ctx, id, open,
+            PendingIntent pi = PendingIntent.getActivity(ctx, (path + id).hashCode(), open,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             rv.setOnClickPendingIntent(R.id.widget_root, pi);
             mgr.updateAppWidget(id, rv);

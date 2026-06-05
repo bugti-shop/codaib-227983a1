@@ -77,6 +77,7 @@ const WIDGET_STREAK_KEY = `streak_data`;
 class WidgetDataSyncManager {
   private static instance: WidgetDataSyncManager;
   private syncInProgress = false;
+  private initialized = false;
 
   private constructor() {}
 
@@ -95,16 +96,24 @@ class WidgetDataSyncManager {
       console.log('[WidgetSync] Not on native platform, skipping');
       return;
     }
-
-    // Initial sync
-    await this.syncAllData();
+    if (this.initialized) {
+      await this.drainPendingWidgetPath();
+      return;
+    }
+    this.initialized = true;
 
     // Handle widget deep-link path (set by native MainActivity on widget tap).
     // Drain once on startup AND every time the app resumes — when the app is
     // already running, onCreate doesn't fire again so we must also listen for
     // appStateChange/resume to pick up the pending path written by onNewIntent.
     await this.drainPendingWidgetPath();
+    [100, 350, 900, 1600].forEach((delay) => {
+      window.setTimeout(() => this.drainPendingWidgetPath().catch(() => {}), delay);
+    });
     try {
+      CapApp.addListener('appUrlOpen', ({ url }: { url: string }) => {
+        this.openWidgetUrl(url).catch(() => {});
+      });
       CapApp.addListener('appStateChange', (s: { isActive: boolean }) => {
         if (s.isActive) this.drainPendingWidgetPath().catch(() => {});
       });
@@ -112,6 +121,9 @@ class WidgetDataSyncManager {
         this.drainPendingWidgetPath().catch(() => {});
       });
     } catch {}
+
+    // Initial sync after route handling so widget taps never wait on IndexedDB.
+    await this.syncAllData();
 
     // Listen for data changes
     window.addEventListener('notesUpdated', () => this.syncNotes());
@@ -129,14 +141,26 @@ class WidgetDataSyncManager {
       const { value } = await Preferences.get({ key: 'widget_pending_path' });
       if (!value) return;
       await Preferences.remove({ key: 'widget_pending_path' });
-      if (typeof window !== 'undefined') {
-        const current = window.location.pathname + window.location.search;
-        if (value !== current) {
-          window.history.pushState({}, '', value);
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }
-      }
+      this.openWidgetPath(value);
     } catch {}
+  }
+
+  private async openWidgetUrl(url: string): Promise<void> {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'codaib:' || parsed.hostname !== 'widget') return;
+      this.openWidgetPath(`${parsed.pathname}${parsed.search}`);
+    } catch {}
+  }
+
+  private openWidgetPath(path: string): void {
+    if (typeof window === 'undefined' || !path.startsWith('/')) return;
+    const current = window.location.pathname + window.location.search;
+    if (path !== current) {
+      window.history.pushState({}, '', path);
+    }
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.dispatchEvent(new CustomEvent('widgetRouteOpen', { detail: { path } }));
   }
 
   /**
