@@ -7,7 +7,7 @@
  */
 import { TodoItem } from '@/types/note';
 import { genId } from '@/utils/genId';
-import { getValidGoogleAccessToken } from '@/utils/googleAuth';
+import { getValidAccessToken } from '@/utils/googleAuth';
 import { loadTodoItems, saveTodoItems } from '@/utils/todoItemsStorage';
 import { getSetting, setSetting } from '@/utils/settingsStorage';
 
