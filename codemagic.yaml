@@ -45,7 +45,13 @@ workflows:
 
       - name: Capacitor sync
         script: |
-          npx cap sync ios
+          set -e
+          rm -f ios/App/Podfile.lock ios/App/Pods/Manifest.lock
+          npx cap copy ios
+          cd ios/App
+          pod install --repo-update
+          cd ../..
+          npx cap update ios
 
       - name: Install CocoaPods
         script: |
