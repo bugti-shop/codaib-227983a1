@@ -177,11 +177,6 @@ const WidgetRouteListener = () => {
   const location = useLocation();
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    void widgetDataSync.initialize();
-  }, []);
-
-  useEffect(() => {
     const handleWidgetRoute = (event: CustomEvent<{ path: string }>) => {
       const path = event.detail?.path;
       if (!path?.startsWith('/')) return;
@@ -191,6 +186,11 @@ const WidgetRouteListener = () => {
     window.addEventListener('widgetRouteOpen', handleWidgetRoute as EventListener);
     return () => window.removeEventListener('widgetRouteOpen', handleWidgetRoute as EventListener);
   }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    void widgetDataSync.initialize();
+  }, []);
 
   return null;
 };
