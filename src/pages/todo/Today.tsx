@@ -138,9 +138,12 @@ const Today = () => {
 
   // Widget deep-link: ?add=1 → auto-open the task input sheet (AddTask home-screen widget tap)
   useEffect(() => {
+    let fired = false;
     const checkAddParam = () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get('add') === '1') {
+        if (fired) return;
+        fired = true;
         setIsInputOpen(true);
         params.delete('add');
         const qs = params.toString();
@@ -148,8 +151,14 @@ const Today = () => {
       }
     };
     checkAddParam();
+    // Cold-start safety: the widget pending-path may be drained AFTER this mount.
+    const t1 = window.setTimeout(checkAddParam, 250);
+    const t2 = window.setTimeout(checkAddParam, 800);
     window.addEventListener('popstate', checkAddParam);
-    return () => window.removeEventListener('popstate', checkAddParam);
+    return () => {
+      window.clearTimeout(t1); window.clearTimeout(t2);
+      window.removeEventListener('popstate', checkAddParam);
+    };
   }, [setIsInputOpen]);
 
   useEffect(() => {
