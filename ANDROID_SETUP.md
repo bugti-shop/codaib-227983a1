@@ -143,7 +143,6 @@ npx cap sync android
 ```java
 package nota.npd.com;
 
-import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.core.view.WindowCompat;
