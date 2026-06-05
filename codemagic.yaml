@@ -15,7 +15,7 @@ workflows:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         BUNDLE_ID: "com.flowist.app"
         PROVISIONING_PROFILE_NAME: "Flowist_Distribution"
-      node: v18.17.0
+        node: 22.11.0
       xcode: 26.0
       cocoapods: default
 
