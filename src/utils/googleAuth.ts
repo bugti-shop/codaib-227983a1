@@ -17,7 +17,12 @@ const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.appdata',
   'https://www.googleapis.com/auth/drive.file',
 ];
-const NATIVE_SCOPES = ['openid', 'email', 'profile', ...DRIVE_SCOPES];
+// Calendar scopes — read events + create/update/delete (two-way sync)
+const CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+];
+const NATIVE_SCOPES = ['openid', 'email', 'profile', ...DRIVE_SCOPES, ...CALENDAR_SCOPES];
 
 const SESSION_TTL = 365 * 24 * 3600 * 1000; // 1 year session
 const ACCESS_TOKEN_TTL = 3500 * 1000; // ~58 min
@@ -506,7 +511,7 @@ const getGisTokenClient = async () => {
   if (!google?.accounts?.oauth2?.initTokenClient) return null;
   gisTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope: ['openid', 'email', 'profile', ...DRIVE_SCOPES].join(' '),
+    scope: ['openid', 'email', 'profile', ...DRIVE_SCOPES, ...CALENDAR_SCOPES].join(' '),
     callback: () => {},
   });
   return gisTokenClient;
