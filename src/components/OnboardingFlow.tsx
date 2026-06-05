@@ -1119,25 +1119,39 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     onComplete();
   }, [onComplete, openPaywall]);
 
-  // Floating Skip button rendered via portal so it overlays every onboarding
-  // screen from step 0 onward (i.e. after the language + sign-in screens).
-  const skipButtonPortal = (step >= 0 && typeof document !== 'undefined')
-    ? createPortal(
-        <button
-          type="button"
-          onClick={handleSkipOnboarding}
-          aria-label={t('onboarding.skip', 'Skip')}
-          className="fixed z-[500] px-3.5 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white backdrop-blur-sm active:scale-95 transition-transform"
-          style={{
-            top: 'calc(var(--safe-top, 0px) + 12px)',
-            right: 'max(12px, env(safe-area-inset-right, 0px))',
-          }}
-        >
-          {t('onboarding.skip', 'Skip')}
-        </button>,
-        document.body,
-      )
-    : null;
+  // Floating Skip button mounted directly on document.body so it overlays
+  // every onboarding screen from step 0 onward (i.e. after the language +
+  // sign-in screens) regardless of which early-return branch renders.
+  useEffect(() => {
+    if (step < 0 || typeof document === 'undefined') return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = t('onboarding.skip', 'Skip');
+    btn.setAttribute('aria-label', t('onboarding.skip', 'Skip'));
+    btn.style.cssText = [
+      'position:fixed',
+      'top:calc(var(--safe-top, 0px) + 12px)',
+      'right:max(12px, env(safe-area-inset-right, 0px))',
+      'z-index:500',
+      'padding:6px 14px',
+      'border-radius:9999px',
+      'font-size:12px',
+      'font-weight:600',
+      'background:rgba(0,0,0,0.7)',
+      'color:#fff',
+      'border:0',
+      'backdrop-filter:blur(6px)',
+      '-webkit-backdrop-filter:blur(6px)',
+      'cursor:pointer',
+    ].join(';');
+    btn.addEventListener('click', handleSkipOnboarding);
+    document.body.appendChild(btn);
+    return () => {
+      btn.removeEventListener('click', handleSkipOnboarding);
+      btn.remove();
+    };
+  }, [step, handleSkipOnboarding, t]);
+
 
   // Language selection screen (step -3)
   if (step === -3) {
