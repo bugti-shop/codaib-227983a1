@@ -1103,6 +1103,55 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   // Welcome splash (step -1) removed
 
+  // Skip-onboarding handler — marks onboarding complete, clears saved progress,
+  // opens the paywall, and exits onboarding. Only available AFTER sign-in
+  // screens (step >= 0).
+  const handleSkipOnboarding = useCallback(async () => {
+    try { await triggerHaptic(); } catch {}
+    try {
+      await setSetting('onboarding_completed', true);
+      await setSetting('onboarding_progress_state', null);
+    } catch (e) {
+      console.warn('[Onboarding] Failed to persist skip state:', e);
+    }
+    try { openPaywall('onboarding_skip'); } catch {}
+    onComplete();
+  }, [onComplete, openPaywall]);
+
+  // Floating Skip button mounted directly on document.body so it overlays
+  // every onboarding screen from step 0 onward (i.e. after the language +
+  // sign-in screens) regardless of which early-return branch renders.
+  useEffect(() => {
+    if (step < 0 || typeof document === 'undefined') return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = t('onboarding.skip', 'Skip');
+    btn.setAttribute('aria-label', t('onboarding.skip', 'Skip'));
+    btn.style.cssText = [
+      'position:fixed',
+      'top:calc(var(--safe-top, 0px) + 12px)',
+      'right:max(12px, env(safe-area-inset-right, 0px))',
+      'z-index:500',
+      'padding:6px 14px',
+      'border-radius:9999px',
+      'font-size:12px',
+      'font-weight:600',
+      'background:rgba(0,0,0,0.7)',
+      'color:#fff',
+      'border:0',
+      'backdrop-filter:blur(6px)',
+      '-webkit-backdrop-filter:blur(6px)',
+      'cursor:pointer',
+    ].join(';');
+    btn.addEventListener('click', handleSkipOnboarding);
+    document.body.appendChild(btn);
+    return () => {
+      btn.removeEventListener('click', handleSkipOnboarding);
+      btn.remove();
+    };
+  }, [step, handleSkipOnboarding, t]);
+
+
   // Language selection screen (step -3)
   if (step === -3) {
     const languages = [
