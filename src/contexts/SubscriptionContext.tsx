@@ -39,9 +39,9 @@ const ENTITLEMENT_ID = 'npd Pro';
 const IS_IOS = Capacitor.getPlatform() === 'ios';
 const PRODUCT_IDS: { weekly: string; monthly: string; yearly: string } = IS_IOS
   ? {
-      weekly: 'com.flowist.app.weekly',
-      monthly: 'com.flowist.app.monthly',
-      yearly: 'com.flowist.app.yearly',
+      weekly: 'com.flowist.app.week',
+      monthly: 'com.flowist.app.month',
+      yearly: 'com.flowist.app.year',
     }
   : {
       weekly: 'nnppd_weekly:nnnpd-weekly',
@@ -636,9 +636,9 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const productIdMap: Record<ProductType, string> = {
-        weekly: IS_IOS ? 'com.flowist.app.weekly' : 'nnppd_weekly',
-        monthly: IS_IOS ? 'com.flowist.app.monthly' : 'npd_mo',
-        yearly: IS_IOS ? 'com.flowist.app.yearly' : 'npd_yr',
+        weekly: IS_IOS ? 'com.flowist.app.week' : 'nnppd_weekly',
+        monthly: IS_IOS ? 'com.flowist.app.month' : 'npd_mo',
+        yearly: IS_IOS ? 'com.flowist.app.year' : 'npd_yr',
       };
 
       // Try finding by package type first, then by product identifier across ALL offerings
