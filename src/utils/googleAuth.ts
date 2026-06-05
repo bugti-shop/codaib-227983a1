@@ -273,11 +273,28 @@ export const cancelNativeAutoPrompt = async (): Promise<void> => {
   if (nativeAutoPromptCancelled || !isNative()) return;
   nativeAutoPromptCancelled = true;
   try {
-    const SocialLogin = await loadNativeGoogle();
+    // Must initialize BEFORE calling logout, otherwise the plugin
+    // ends up in a broken state and login() silently does nothing.
+    const SocialLogin = await ensureNativeInit();
     await SocialLogin.logout({ provider: 'google' });
     console.log('[Auth] Cancelled native auto-sign-in prompt');
   } catch {
     // Ignore — may fail if not initialized yet, which is fine.
+  }
+};
+
+/**
+ * Eagerly initialize the native social-login plugin at app startup.
+ * Capgo's SocialLogin REQUIRES initialize() before any other call,
+ * otherwise login() can silently do nothing on iOS.
+ */
+export const initNativeSocialLogin = async (): Promise<void> => {
+  if (!isNative()) return;
+  try {
+    await ensureNativeInit();
+    console.log('[Auth] Native SocialLogin (Google) initialized');
+  } catch (e) {
+    console.warn('[Auth] Native SocialLogin init failed:', e);
   }
 };
 
