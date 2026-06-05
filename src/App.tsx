@@ -258,6 +258,11 @@ const AppRoutes = () => {
             
             <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
             <Route path="/admin/onboarding" element={<AdminOnboarding />} />
+            <Route path="/w/add-task" element={<WidgetAddTask />} />
+            <Route path="/w/new/sticky" element={<WidgetNewSticky />} />
+            <Route path="/w/new/lined" element={<WidgetNewLined />} />
+            <Route path="/w/new/regular" element={<WidgetNewRegular />} />
+            <Route path="/w/new/sketch" element={<WidgetNewSketch />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
