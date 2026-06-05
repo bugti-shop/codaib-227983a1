@@ -77,6 +77,36 @@ workflows:
           # block stays clean (no embedded multi-line Python).
           bash scripts/ci/asc-preflight.sh
 
+      - name: Check build number
+        script: |
+          set -e
+          INFO_PLIST="ios/App/App/Info.plist"
+          PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+
+          SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "unknown")
+          BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "unknown")
+          MARKETING_VERSION=$(grep -m1 "MARKETING_VERSION = " "$PBXPROJ" | sed 's/.*MARKETING_VERSION = \([^;]*\);.*/\1/' || echo "unknown")
+          CURRENT_PROJECT_VERSION=$(grep -m1 "CURRENT_PROJECT_VERSION = " "$PBXPROJ" | sed 's/.*CURRENT_PROJECT_VERSION = \([^;]*\);.*/\1/' || echo "unknown")
+
+          echo "==================================================="
+          echo " BUILD NUMBER CHECK"
+          echo "==================================================="
+          echo " Bundle ID                  : $BUNDLE_ID"
+          echo " CFBundleShortVersionString : $SHORT_VERSION"
+          echo " CFBundleVersion (build #)  : $BUILD_NUMBER"
+          echo " MARKETING_VERSION (pbxproj): $MARKETING_VERSION"
+          echo " CURRENT_PROJECT_VERSION    : $CURRENT_PROJECT_VERSION"
+          echo "==================================================="
+
+          if [ "$BUILD_NUMBER" = "unknown" ] || [ -z "$BUILD_NUMBER" ]; then
+            echo "ERROR: CFBundleVersion is not set — App Store Connect upload will fail."
+            exit 1
+          fi
+          if [ "$SHORT_VERSION" = "unknown" ] || [ -z "$SHORT_VERSION" ]; then
+            echo "ERROR: CFBundleShortVersionString is not set — App Store Connect upload will fail."
+            exit 1
+          fi
+
       - name: Set CODE_SIGN_ENTITLEMENTS in Xcode project
         script: |
           cd ios/App
