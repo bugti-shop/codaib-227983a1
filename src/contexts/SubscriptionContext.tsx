@@ -485,7 +485,26 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
       const { customerInfo: info } = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
-      const hasEntitlement = hasActiveRevenueCatAccess(info);
+      let hasEntitlement = hasActiveRevenueCatAccess(info);
+
+      // Auto-recover purchases on Android (and iOS) when the cached customer
+      // info has no active entitlement. This handles the case where the user
+      // bought a subscription on Google Play / App Store but the local
+      // RevenueCat anonymous ID lost association (e.g. after reinstall or
+      // when initialize() was first called without a stable appUserID).
+      if (!hasEntitlement) {
+        try {
+          console.log('[RevenueCat] No entitlement on init — attempting silent restore');
+          const { customerInfo: restored } = await Purchases.restorePurchases();
+          if (hasActiveRevenueCatAccess(restored)) {
+            setCustomerInfo(restored);
+            hasEntitlement = true;
+            console.log('[RevenueCat] Silent restore recovered active entitlement');
+          }
+        } catch (restoreErr) {
+          console.warn('[RevenueCat] Silent restore failed', restoreErr);
+        }
+      }
       setRcIsPro(hasEntitlement);
       // Cache entitlement + plan details on native for offline-first access
       try {
@@ -1343,13 +1362,11 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const closePaywall = useCallback(() => {
-    // Allow closing if user has verified access OR is in soft-paywall (new free user) mode.
-    // Soft mode = paywall is dismissable; hard mode = stays until upgrade.
-    if (rcIsPro || localProAccess || isAdminBypass || signoutGraceActive || isNewFreeUser) {
-      setShowPaywall(false);
-      setPaywallFeature(null);
-    }
-  }, [rcIsPro, localProAccess, isAdminBypass, signoutGraceActive, isNewFreeUser]);
+    // Paywall is always dismissable via the close (X) button. Hard feature gating
+    // is enforced separately at each Pro-gated action via requireFeature().
+    setShowPaywall(false);
+    setPaywallFeature(null);
+  }, []);
 
   const unlockPro = useCallback(async () => {
     await setSetting('flowist_admin_bypass', true);
