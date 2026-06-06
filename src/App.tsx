@@ -332,7 +332,21 @@ const AppContent = () => {
   // Check onboarding status
   useEffect(() => {
     const check = async () => {
-      const completed = await getSetting<boolean>('onboarding_completed', false);
+      // Read from BOTH IndexedDB-backed settings AND Capacitor Preferences (native).
+      // On iOS WKWebView, IndexedDB can occasionally be cleared by the system under
+      // storage pressure — Preferences (UserDefaults-backed) is the durable source.
+      let completed = await getSetting<boolean>('onboarding_completed', false);
+      if (!completed && Capacitor.isNativePlatform()) {
+        try {
+          const { value } = await Preferences.get({ key: 'onboarding_completed' });
+          if (value === 'true') {
+            completed = true;
+            // Re-hydrate IndexedDB so the rest of the app sees the flag too
+            await setSetting('onboarding_completed', true);
+            try { localStorage.setItem('onboarding_completed_flag', 'true'); } catch {}
+          }
+        } catch {}
+      }
       setShowOnboarding(!completed);
     };
     check();
@@ -461,6 +475,11 @@ const AppContent = () => {
       localStorage.setItem('onboarding_completed_flag', 'true');
       sessionStorage.setItem('flowist_landing_acknowledged', 'true');
     } catch {}
+    // Native: mirror to Capacitor Preferences (UserDefaults / SharedPrefs) so the
+    // flag survives WKWebView storage purges and WebView resets.
+    if (Capacitor.isNativePlatform()) {
+      Preferences.set({ key: 'onboarding_completed', value: 'true' }).catch(() => {});
+    }
     startTransition(() => {
       setShowLanding(false);
       setShowOnboarding(false);
