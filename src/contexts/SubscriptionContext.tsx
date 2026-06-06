@@ -485,7 +485,26 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
       const { customerInfo: info } = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
-      const hasEntitlement = hasActiveRevenueCatAccess(info);
+      let hasEntitlement = hasActiveRevenueCatAccess(info);
+
+      // Auto-recover purchases on Android (and iOS) when the cached customer
+      // info has no active entitlement. This handles the case where the user
+      // bought a subscription on Google Play / App Store but the local
+      // RevenueCat anonymous ID lost association (e.g. after reinstall or
+      // when initialize() was first called without a stable appUserID).
+      if (!hasEntitlement) {
+        try {
+          console.log('[RevenueCat] No entitlement on init — attempting silent restore');
+          const { customerInfo: restored } = await Purchases.restorePurchases();
+          if (hasActiveRevenueCatAccess(restored)) {
+            setCustomerInfo(restored);
+            hasEntitlement = true;
+            console.log('[RevenueCat] Silent restore recovered active entitlement');
+          }
+        } catch (restoreErr) {
+          console.warn('[RevenueCat] Silent restore failed', restoreErr);
+        }
+      }
       setRcIsPro(hasEntitlement);
       // Cache entitlement + plan details on native for offline-first access
       try {
