@@ -393,6 +393,27 @@ export const fullCalendarSync = async () => {
     console.warn('[gcal] pull failed', e);
     return { added: 0, updated: 0, removed: 0 };
   });
+  // Detect locally-deleted tasks (had a linked eventId before, now gone) and
+  // remove the corresponding events from Google Calendar.
+  try {
+    const tasksNow = await loadTodoItems();
+    const linkedNow = new Map<string, string>(); // taskId → eventId
+    for (const t of tasksNow) {
+      if (t.googleCalendarEventId) linkedNow.set(t.id, t.googleCalendarEventId);
+    }
+    const prev =
+      (await getSetting<Record<string, string>>(PUSH_INDEX_KEY, {})) || {};
+    for (const [taskId, eventId] of Object.entries(prev)) {
+      if (!linkedNow.has(taskId)) {
+        await deleteTaskFromCalendar({
+          googleCalendarEventId: eventId,
+        } as TodoItem).catch(() => {});
+      }
+    }
+    await setSetting(PUSH_INDEX_KEY, Object.fromEntries(linkedNow));
+  } catch (e) {
+    console.warn('[gcal] deletion sync failed', e);
+  }
   const pushed = await pushPendingTasksToCalendar().catch((e) => {
     console.warn('[gcal] push failed', e);
     return { created: 0, linked: 0, skipped: 0 };
