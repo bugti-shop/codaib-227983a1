@@ -1343,13 +1343,11 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const closePaywall = useCallback(() => {
-    // Allow closing if user has verified access OR is in soft-paywall (new free user) mode.
-    // Soft mode = paywall is dismissable; hard mode = stays until upgrade.
-    if (rcIsPro || localProAccess || isAdminBypass || signoutGraceActive || isNewFreeUser) {
-      setShowPaywall(false);
-      setPaywallFeature(null);
-    }
-  }, [rcIsPro, localProAccess, isAdminBypass, signoutGraceActive, isNewFreeUser]);
+    // Paywall is always dismissable via the close (X) button. Hard feature gating
+    // is enforced separately at each Pro-gated action via requireFeature().
+    setShowPaywall(false);
+    setPaywallFeature(null);
+  }, []);
 
   const unlockPro = useCallback(async () => {
     await setSetting('flowist_admin_bypass', true);
