@@ -12,6 +12,7 @@ import {
   cancelNativeAutoPrompt,
 } from '@/utils/googleAuth';
 import { setSetting } from '@/utils/settingsStorage';
+import { startCalendarAutoSync, stopCalendarAutoSync } from '@/utils/googleCalendarSync';
 
 interface GoogleAuthContextType {
   user: GoogleUser | null;
@@ -130,6 +131,9 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
 
     backgroundTokenRefresh().catch(() => {});
 
+    // Start two-way Google Calendar sync (pull events + push tasks, with dedup)
+    startCalendarAutoSync();
+
     refreshTimerRef.current = setInterval(() => {
       backgroundTokenRefresh().then(async () => {
         const refreshed = await getStoredGoogleUser();
@@ -175,6 +179,7 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('driveReauthNeeded', handleReauthNeeded);
       window.removeEventListener('syncReconnected', handleSyncReconnected);
+      stopCalendarAutoSync();
     };
   }, [user?.email]);
 
