@@ -537,12 +537,14 @@ export default function Landing() {
               Whether it's your phone, computer, or tablet, Flowist offers real-time sync and a seamless experience.
             </p>
             <div className="mt-5 flex justify-center">
-              <button
-                onClick={handleGetStarted}
+              <a
+                href="https://apps.apple.com/us/app/flowist-ai-note-taker/id6772996510"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex h-12 items-center justify-center rounded-full border border-white/70 px-10 text-base font-semibold text-white transition-all hover:bg-white hover:text-[#3c78f0]"
               >
                 Download
-              </button>
+              </a>
             </div>
             <div className="mt-4 sm:mt-6 flex justify-center overflow-hidden">
               <img
@@ -605,7 +607,7 @@ export default function Landing() {
             <div>
               <h4 className="mb-4 text-base font-bold text-slate-900">Download</h4>
               <ul className="space-y-3 text-sm text-slate-600">
-                <li><span className="text-slate-500">iOS — Coming soon</span></li>
+                <li><a href="https://apps.apple.com/us/app/flowist-ai-note-taker/id6772996510" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900">iOS</a></li>
                 <li><a href="https://play.google.com/store/apps/details?id=nota.npd.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900">Android</a></li>
                 <li><button onClick={handleGetStarted} className="hover:text-slate-900">Web App</button></li>
               </ul>
