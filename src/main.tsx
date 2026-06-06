@@ -16,6 +16,43 @@ if (Capacitor.isNativePlatform()) {
   } else if (Capacitor.getPlatform() === 'ios') {
     document.body.classList.add('ios-app');
   }
+
+  // Lock the viewport on native so an accidental pinch-zoom or double-tap-zoom
+  // (a common iOS WKWebView complaint) cannot leave the UI stuck zoomed-in
+  // until the user kills the app.
+  try {
+    let vp = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    if (!vp) {
+      vp = document.createElement('meta');
+      vp.name = 'viewport';
+      document.head.appendChild(vp);
+    }
+    vp.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
+    );
+  } catch {}
+
+  // Belt-and-suspenders: block iOS gesture-based zoom even if a stray meta
+  // viewport gets re-injected later, and snap any stuck zoom back to 1x.
+  const cancelZoom = (e: Event) => { e.preventDefault(); };
+  document.addEventListener('gesturestart', cancelZoom, { passive: false });
+  document.addEventListener('gesturechange', cancelZoom, { passive: false });
+  document.addEventListener('gestureend', cancelZoom, { passive: false });
+
+  let lastTouchEnd = 0;
+  document.addEventListener(
+    'touchend',
+    (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        // double-tap → suppress iOS zoom
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    },
+    { passive: false }
+  );
 }
 
 // Prevent PWA service worker in preview/iframe contexts

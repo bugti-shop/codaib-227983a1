@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 import { supabase } from "@/integrations/supabase/client";
 
 import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
@@ -331,7 +332,21 @@ const AppContent = () => {
   // Check onboarding status
   useEffect(() => {
     const check = async () => {
-      const completed = await getSetting<boolean>('onboarding_completed', false);
+      // Read from BOTH IndexedDB-backed settings AND Capacitor Preferences (native).
+      // On iOS WKWebView, IndexedDB can occasionally be cleared by the system under
+      // storage pressure — Preferences (UserDefaults-backed) is the durable source.
+      let completed = await getSetting<boolean>('onboarding_completed', false);
+      if (!completed && Capacitor.isNativePlatform()) {
+        try {
+          const { value } = await Preferences.get({ key: 'onboarding_completed' });
+          if (value === 'true') {
+            completed = true;
+            // Re-hydrate IndexedDB so the rest of the app sees the flag too
+            await setSetting('onboarding_completed', true);
+            try { localStorage.setItem('onboarding_completed_flag', 'true'); } catch {}
+          }
+        } catch {}
+      }
       setShowOnboarding(!completed);
     };
     check();
@@ -439,10 +454,20 @@ const AppContent = () => {
     if (wasEverPro.current) return;
     // Soft-paywall: brand-new free users get to use the app with limits — don't kick them back to onboarding
     if (isNewFreeUser) return;
-    // No active subscription — redirect to language selection
-    setSetting('onboarding_completed', false).then(() => {
+    // No active subscription — but if the user previously completed onboarding,
+    // DO NOT wipe their progress and dump them back into language selection.
+    // The paywall (gated per-feature inside the app) is the correct gate for
+    // non-pro users. Wiping onboarding on every cold start was the root cause
+    // of "app restarts onboarding after sign-in + reopen" on iOS.
+    (async () => {
+      const alreadyOnboarded =
+        (typeof localStorage !== 'undefined' &&
+          localStorage.getItem('onboarding_completed_flag') === 'true') ||
+        (await getSetting<boolean>('onboarding_completed', false));
+      if (alreadyOnboarded) return; // keep them in the app; paywall will gate Pro features
+      await setSetting('onboarding_completed', false);
       setShowOnboarding(true);
-    });
+    })();
   }, [isPro, subLoading, showOnboarding, isVerifyingCheckout, isNewFreeUser]);
 
   // Grace period after onboarding completes — prevents the subscription effect
@@ -460,6 +485,11 @@ const AppContent = () => {
       localStorage.setItem('onboarding_completed_flag', 'true');
       sessionStorage.setItem('flowist_landing_acknowledged', 'true');
     } catch {}
+    // Native: mirror to Capacitor Preferences (UserDefaults / SharedPrefs) so the
+    // flag survives WKWebView storage purges and WebView resets.
+    if (Capacitor.isNativePlatform()) {
+      Preferences.set({ key: 'onboarding_completed', value: 'true' }).catch(() => {});
+    }
     startTransition(() => {
       setShowLanding(false);
       setShowOnboarding(false);
