@@ -102,6 +102,36 @@ const explainAppleExchangeError = (message: string, audience?: string) => {
   return message || 'Apple sign-in was not accepted by the backend.';
 };
 
+/**
+ * Map raw native errors from the Apple sheet into a user-friendly message.
+ * Apple/AuthKit errors -7026 and AuthorizationError 1000 commonly mean the
+ * device/simulator has no signed-in Apple ID. Capgo surfaces these as a
+ * "cancelled"-shaped error, which our callers were silently swallowing.
+ */
+export const explainNativeAppleError = (err: unknown): string => {
+  const raw =
+    (err as { message?: string })?.message ||
+    (typeof err === 'string' ? err : '') ||
+    String(err || '');
+  const code = String((err as { code?: string | number })?.code ?? '');
+  const blob = `${raw} ${code}`.toLowerCase();
+
+  if (
+    blob.includes('-7026') ||
+    blob.includes('1000') ||
+    blob.includes('no active account') ||
+    blob.includes('not signed in') ||
+    blob.includes('no apple id')
+  ) {
+    return 'Apple sign-in is not available. On the iOS Simulator open Settings → Sign in to your iPhone and add an Apple ID, then try again. On a real device, make sure you are signed into iCloud.';
+  }
+  if (blob.includes('cancel')) return 'CANCELLED';
+  if (blob.includes('network') || blob.includes('timed out') || blob.includes('-1001')) {
+    return 'Network error during Apple sign-in. Check your connection and try again.';
+  }
+  return raw || 'Apple sign-in failed. Please try again.';
+};
+
 const withTimeout = <T,>(p: Promise<T>, ms: number, msg: string): Promise<T> =>
   new Promise((resolve, reject) => {
     const id = setTimeout(() => reject(new Error(msg)), ms);

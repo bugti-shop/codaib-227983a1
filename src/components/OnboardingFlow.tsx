@@ -1453,6 +1453,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   setStep(0);
                 } catch (err) {
                   console.error('Apple sign-in failed:', err);
+                  try {
+                    const { explainNativeAppleError } = await import('@/utils/nativeAppleAuth');
+                    const msg = explainNativeAppleError(err);
+                    if (msg !== 'CANCELLED') {
+                      const { toast } = await import('sonner');
+                      toast.error(msg);
+                    }
+                  } catch {}
                   setStep(0);
                 }
               })();
