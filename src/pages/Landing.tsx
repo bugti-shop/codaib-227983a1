@@ -331,20 +331,21 @@ export default function Landing() {
                   Get Flowist Free <ArrowRight className="h-5 w-5" />
                 </button>
                 <div className="grid w-full grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex h-[52px] w-full cursor-default items-center justify-center gap-2 rounded-md bg-black px-3 text-white opacity-90"
-                    aria-label="App Store coming soon"
+                  <a
+                    href="https://apps.apple.com/us/app/flowist-ai-note-taker/id6772996510"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-md bg-black px-3 text-white transition-transform active:translate-y-0.5"
+                    aria-label="Download Flowist on the App Store"
                   >
                     <svg viewBox="0 0 384 512" className="h-7 w-7 fill-current shrink-0" aria-hidden="true">
                       <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zM256.5 105.7c30.1-35.7 27.4-68.2 26.5-79.9-26.6 1.5-57.4 18.1-74.9 38.5-19.3 21.9-30.6 49-28.2 78.8 28.7 2.2 54.9-12.5 76.6-37.4z"/>
                     </svg>
                     <div className="flex flex-col items-start leading-tight">
-                      <span className="text-[10px] font-medium opacity-90">Coming soon on</span>
+                      <span className="text-[10px] font-medium opacity-90">Download on the</span>
                       <span className="text-[17px] font-semibold tracking-tight">App Store</span>
                     </div>
-                  </button>
+                  </a>
                   <a
                     href="https://play.google.com/store/apps/details?id=nota.npd.com"
                     target="_blank"
