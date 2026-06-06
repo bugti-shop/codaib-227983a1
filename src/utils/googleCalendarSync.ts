@@ -16,6 +16,26 @@ const SYNC_TOKEN_KEY = 'gcal:syncToken';
 const LAST_SYNC_KEY = 'gcal:lastSyncAt';
 const CALENDAR_ID_KEY = 'gcal:calendarId';
 const DEFAULT_CALENDAR_ID = 'primary';
+const PUSH_INDEX_KEY = 'gcal:pushedTaskIds';
+
+/** Normalize a title for fuzzy duplicate detection */
+const normalizeTitle = (s: string | undefined): string =>
+  (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/** Two dates considered "same slot" for dedup (within 2 min, or same day for all-day) */
+const isSameSlot = (a: Date | undefined, b: Date | undefined, allDay = false): boolean => {
+  if (!a || !b) return false;
+  const da = new Date(a);
+  const db = new Date(b);
+  if (allDay) {
+    return (
+      da.getFullYear() === db.getFullYear() &&
+      da.getMonth() === db.getMonth() &&
+      da.getDate() === db.getDate()
+    );
+  }
+  return Math.abs(da.getTime() - db.getTime()) < 2 * 60_000;
+};
 
 interface GCalEventTime {
   date?: string;       // YYYY-MM-DD (all-day)
@@ -169,8 +189,27 @@ export const syncCalendarToTasks = async (): Promise<{
       next = next.map((t) => (t.id === existing.id ? merged : t));
       updated++;
     } else {
-      next.push(eventToTask(ev));
-      added++;
+      // Dedup: try to find an existing un-linked local task that matches this event
+      // (same normalized title + same time slot). If found, just link it instead of
+      // creating a duplicate. This handles the "first connect" case where the user
+      // already manually has matching tasks.
+      const evStart = parseEventStart(ev);
+      const allDay = !!ev.start?.date && !ev.start?.dateTime;
+      const evTitle = normalizeTitle(ev.summary);
+      const dupIdx = next.findIndex(
+        (t) =>
+          !t.googleCalendarEventId &&
+          normalizeTitle(t.text) === evTitle &&
+          isSameSlot(t.dueDate, evStart, allDay),
+      );
+      if (dupIdx >= 0) {
+        const merged = eventToTask(ev, next[dupIdx]);
+        next[dupIdx] = merged;
+        updated++;
+      } else {
+        next.push(eventToTask(ev));
+        added++;
+      }
     }
   }
 
@@ -261,17 +300,160 @@ export const deleteTaskFromCalendar = async (task: TodoItem): Promise<void> => {
 export const getLastCalendarSyncAt = () => getSetting<number | null>(LAST_SYNC_KEY, null);
 export const resetCalendarSync = () => setSetting(SYNC_TOKEN_KEY, null);
 
+/**
+ * Push every local task that has a dueDate but no Google Calendar link.
+ * Before creating an event, we look at the user's existing calendar window
+ * (±60 days) and try to find an event with the same normalized title at the
+ * same time slot — if found we LINK to it instead of creating a duplicate.
+ */
+export const pushPendingTasksToCalendar = async (): Promise<{
+  created: number;
+  linked: number;
+  skipped: number;
+}> => {
+  const token = await getValidAccessToken();
+  if (!token) throw new Error('Not signed in to Google');
+
+  const calendarId =
+    (await getSetting<string>(CALENDAR_ID_KEY, DEFAULT_CALENDAR_ID)) || DEFAULT_CALENDAR_ID;
+
+  const tasks = await loadTodoItems();
+  const pending = tasks.filter(
+    (t) => t.dueDate && !t.googleCalendarEventId && !t.completed,
+  );
+  if (pending.length === 0) return { created: 0, linked: 0, skipped: 0 };
+
+  // Fetch a window of existing remote events for dedup lookup
+  const timeMin = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+  const timeMax = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString();
+  const lookupParams = new URLSearchParams({
+    singleEvents: 'true',
+    maxResults: '2500',
+    timeMin,
+    timeMax,
+  });
+  const lookupRes = await fetch(
+    `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events?${lookupParams}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const remote: GCalEvent[] = lookupRes.ok ? (await lookupRes.json()).items || [] : [];
+
+  const findRemoteMatch = (task: TodoItem): GCalEvent | undefined => {
+    const title = normalizeTitle(task.text);
+    return remote.find((ev) => {
+      if (ev.status === 'cancelled') return false;
+      if (normalizeTitle(ev.summary) !== title) return false;
+      const allDay = !!ev.start?.date && !ev.start?.dateTime;
+      return isSameSlot(task.dueDate, parseEventStart(ev), allDay);
+    });
+  };
+
+  let created = 0;
+  let linked = 0;
+  let skipped = 0;
+  let next = [...tasks];
+
+  for (const task of pending) {
+    try {
+      const match = findRemoteMatch(task);
+      if (match) {
+        // Link existing remote event — no duplicate created
+        next = next.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                googleCalendarEventId: match.id,
+                googleEventEtag: match.etag,
+                googleEventUpdatedAt: match.updated,
+                googleEventSyncedAt: Date.now(),
+                googleEventSource: 'google',
+              }
+            : t,
+        );
+        linked++;
+        continue;
+      }
+      const pushed = await pushTaskToCalendar(task);
+      next = next.map((t) => (t.id === task.id ? pushed : t));
+      created++;
+    } catch (e) {
+      console.warn('[gcal] push failed for task', task.id, e);
+      skipped++;
+    }
+  }
+
+  await saveTodoItems(next);
+  window.dispatchEvent(new Event('tasksUpdated'));
+  return { created, linked, skipped };
+};
+
+/** Full two-way sync: pull (with dedup) then push pending locals (with dedup). */
+export const fullCalendarSync = async () => {
+  const pulled = await syncCalendarToTasks().catch((e) => {
+    console.warn('[gcal] pull failed', e);
+    return { added: 0, updated: 0, removed: 0 };
+  });
+  // Detect locally-deleted tasks (had a linked eventId before, now gone) and
+  // remove the corresponding events from Google Calendar.
+  try {
+    const tasksNow = await loadTodoItems();
+    const linkedNow = new Map<string, string>(); // taskId → eventId
+    for (const t of tasksNow) {
+      if (t.googleCalendarEventId) linkedNow.set(t.id, t.googleCalendarEventId);
+    }
+    const prev =
+      (await getSetting<Record<string, string>>(PUSH_INDEX_KEY, {})) || {};
+    for (const [taskId, eventId] of Object.entries(prev)) {
+      if (!linkedNow.has(taskId)) {
+        await deleteTaskFromCalendar({
+          googleCalendarEventId: eventId,
+        } as TodoItem).catch(() => {});
+      }
+    }
+    await setSetting(PUSH_INDEX_KEY, Object.fromEntries(linkedNow));
+  } catch (e) {
+    console.warn('[gcal] deletion sync failed', e);
+  }
+  const pushed = await pushPendingTasksToCalendar().catch((e) => {
+    console.warn('[gcal] push failed', e);
+    return { created: 0, linked: 0, skipped: 0 };
+  });
+  return { pulled, pushed };
+};
+
 // Auto sync hook: call once on login + every 15 min while signed in
 let autoSyncTimer: ReturnType<typeof setInterval> | null = null;
+let pushDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let tasksUpdatedListener: (() => void) | null = null;
+
+const scheduleDebouncedPush = () => {
+  if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = setTimeout(() => {
+    pushPendingTasksToCalendar().catch((e) =>
+      console.warn('[gcal] debounced push failed', e),
+    );
+  }, 4000);
+};
+
 export const startCalendarAutoSync = () => {
   if (autoSyncTimer) return;
-  syncCalendarToTasks().catch((e) => console.warn('[gcal] initial sync failed', e));
+  fullCalendarSync().catch((e) => console.warn('[gcal] initial sync failed', e));
   autoSyncTimer = setInterval(
-    () => syncCalendarToTasks().catch((e) => console.warn('[gcal] auto sync failed', e)),
+    () => fullCalendarSync().catch((e) => console.warn('[gcal] auto sync failed', e)),
     15 * 60 * 1000,
   );
+  // Push new/edited tasks shortly after they change
+  tasksUpdatedListener = () => scheduleDebouncedPush();
+  window.addEventListener('tasksUpdated', tasksUpdatedListener);
 };
+
 export const stopCalendarAutoSync = () => {
   if (autoSyncTimer) clearInterval(autoSyncTimer);
   autoSyncTimer = null;
+  if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = null;
+  if (tasksUpdatedListener) {
+    window.removeEventListener('tasksUpdated', tasksUpdatedListener);
+    tasksUpdatedListener = null;
+  }
 };
