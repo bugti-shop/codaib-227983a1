@@ -300,17 +300,139 @@ export const deleteTaskFromCalendar = async (task: TodoItem): Promise<void> => {
 export const getLastCalendarSyncAt = () => getSetting<number | null>(LAST_SYNC_KEY, null);
 export const resetCalendarSync = () => setSetting(SYNC_TOKEN_KEY, null);
 
+/**
+ * Push every local task that has a dueDate but no Google Calendar link.
+ * Before creating an event, we look at the user's existing calendar window
+ * (±60 days) and try to find an event with the same normalized title at the
+ * same time slot — if found we LINK to it instead of creating a duplicate.
+ */
+export const pushPendingTasksToCalendar = async (): Promise<{
+  created: number;
+  linked: number;
+  skipped: number;
+}> => {
+  const token = await getValidAccessToken();
+  if (!token) throw new Error('Not signed in to Google');
+
+  const calendarId =
+    (await getSetting<string>(CALENDAR_ID_KEY, DEFAULT_CALENDAR_ID)) || DEFAULT_CALENDAR_ID;
+
+  const tasks = await loadTodoItems();
+  const pending = tasks.filter(
+    (t) => t.dueDate && !t.googleCalendarEventId && !t.completed,
+  );
+  if (pending.length === 0) return { created: 0, linked: 0, skipped: 0 };
+
+  // Fetch a window of existing remote events for dedup lookup
+  const timeMin = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+  const timeMax = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString();
+  const lookupParams = new URLSearchParams({
+    singleEvents: 'true',
+    maxResults: '2500',
+    timeMin,
+    timeMax,
+  });
+  const lookupRes = await fetch(
+    `${CAL_API}/calendars/${encodeURIComponent(calendarId)}/events?${lookupParams}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const remote: GCalEvent[] = lookupRes.ok ? (await lookupRes.json()).items || [] : [];
+
+  const findRemoteMatch = (task: TodoItem): GCalEvent | undefined => {
+    const title = normalizeTitle(task.text);
+    return remote.find((ev) => {
+      if (ev.status === 'cancelled') return false;
+      if (normalizeTitle(ev.summary) !== title) return false;
+      const allDay = !!ev.start?.date && !ev.start?.dateTime;
+      return isSameSlot(task.dueDate, parseEventStart(ev), allDay);
+    });
+  };
+
+  let created = 0;
+  let linked = 0;
+  let skipped = 0;
+  let next = [...tasks];
+
+  for (const task of pending) {
+    try {
+      const match = findRemoteMatch(task);
+      if (match) {
+        // Link existing remote event — no duplicate created
+        next = next.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                googleCalendarEventId: match.id,
+                googleEventEtag: match.etag,
+                googleEventUpdatedAt: match.updated,
+                googleEventSyncedAt: Date.now(),
+                googleEventSource: 'google',
+              }
+            : t,
+        );
+        linked++;
+        continue;
+      }
+      const pushed = await pushTaskToCalendar(task);
+      next = next.map((t) => (t.id === task.id ? pushed : t));
+      created++;
+    } catch (e) {
+      console.warn('[gcal] push failed for task', task.id, e);
+      skipped++;
+    }
+  }
+
+  await saveTodoItems(next);
+  window.dispatchEvent(new Event('tasksUpdated'));
+  return { created, linked, skipped };
+};
+
+/** Full two-way sync: pull (with dedup) then push pending locals (with dedup). */
+export const fullCalendarSync = async () => {
+  const pulled = await syncCalendarToTasks().catch((e) => {
+    console.warn('[gcal] pull failed', e);
+    return { added: 0, updated: 0, removed: 0 };
+  });
+  const pushed = await pushPendingTasksToCalendar().catch((e) => {
+    console.warn('[gcal] push failed', e);
+    return { created: 0, linked: 0, skipped: 0 };
+  });
+  return { pulled, pushed };
+};
+
 // Auto sync hook: call once on login + every 15 min while signed in
 let autoSyncTimer: ReturnType<typeof setInterval> | null = null;
+let pushDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let tasksUpdatedListener: (() => void) | null = null;
+
+const scheduleDebouncedPush = () => {
+  if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = setTimeout(() => {
+    pushPendingTasksToCalendar().catch((e) =>
+      console.warn('[gcal] debounced push failed', e),
+    );
+  }, 4000);
+};
+
 export const startCalendarAutoSync = () => {
   if (autoSyncTimer) return;
-  syncCalendarToTasks().catch((e) => console.warn('[gcal] initial sync failed', e));
+  fullCalendarSync().catch((e) => console.warn('[gcal] initial sync failed', e));
   autoSyncTimer = setInterval(
-    () => syncCalendarToTasks().catch((e) => console.warn('[gcal] auto sync failed', e)),
+    () => fullCalendarSync().catch((e) => console.warn('[gcal] auto sync failed', e)),
     15 * 60 * 1000,
   );
+  // Push new/edited tasks shortly after they change
+  tasksUpdatedListener = () => scheduleDebouncedPush();
+  window.addEventListener('tasksUpdated', tasksUpdatedListener);
 };
+
 export const stopCalendarAutoSync = () => {
   if (autoSyncTimer) clearInterval(autoSyncTimer);
   autoSyncTimer = null;
+  if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = null;
+  if (tasksUpdatedListener) {
+    window.removeEventListener('tasksUpdated', tasksUpdatedListener);
+    tasksUpdatedListener = null;
+  }
 };
