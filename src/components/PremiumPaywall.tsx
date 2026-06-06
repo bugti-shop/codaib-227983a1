@@ -358,7 +358,18 @@ function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> 
             <p className="font-normal text-sm text-center mt-4" style={{ color: 'hsl(0 0% 45.1%)' }}>{t('onboarding.paywall.freeTrialThen', { price: currentPlan.price })}</p>
           )}
 
-          {/* Apple-required subscription disclosure (Guideline 3.1.2) */}
+          <button onClick={() => { triggerTripleHeavyHaptic(); handlePurchase(); }} disabled={isPurchasing} className="w-80 mt-2 btn-duo disabled:opacity-50">
+            {isPurchasing ? t('onboarding.paywall.processing') : (!hasUsedTrial && currentPlan.hasTrial) ? t('onboarding.paywall.tryForFree', { price: currentPlan.trialPriceString || '$0.00' }) : t('onboarding.paywall.continueWith', { price: currentPlan.price })}
+          </button>
+
+          <p className="text-[13px] font-medium text-center mt-3" style={{ color: 'hsl(0 0% 45.1%)' }}>
+            {t('onboarding.noCommitment', 'No Commitment, cancel anytime')}
+          </p>
+
+          <PaywallFooter logic={logic} />
+
+          {/* Apple-required subscription disclosure (Guideline 3.1.2) — placed
+              after the CTA, restore, and legal links per user request. */}
           {Capacitor.getPlatform() === 'ios' && (
             <div className="w-80 mt-3 rounded-lg px-3 py-2.5 text-[11px] leading-snug" style={{ background: 'hsl(0 0% 96.1%)', color: 'hsl(0 0% 30%)' }}>
               <p className="font-semibold mb-1" style={{ color: 'hsl(0 0% 20%)' }}>
@@ -372,16 +383,6 @@ function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> 
               </p>
             </div>
           )}
-
-          <button onClick={() => { triggerTripleHeavyHaptic(); handlePurchase(); }} disabled={isPurchasing} className="w-80 mt-2 btn-duo disabled:opacity-50">
-            {isPurchasing ? t('onboarding.paywall.processing') : (!hasUsedTrial && currentPlan.hasTrial) ? t('onboarding.paywall.tryForFree', { price: currentPlan.trialPriceString || '$0.00' }) : t('onboarding.paywall.continueWith', { price: currentPlan.price })}
-          </button>
-
-          <p className="text-[13px] font-medium text-center mt-3" style={{ color: 'hsl(0 0% 45.1%)' }}>
-            {t('onboarding.noCommitment', 'No Commitment, cancel anytime')}
-          </p>
-
-          <PaywallFooter logic={logic} />
         </div>
       </div>
     </div>
