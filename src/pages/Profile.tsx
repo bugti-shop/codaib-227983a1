@@ -496,8 +496,9 @@ export default function Profile() {
                       toast({ title: 'Sign-in failed', description: String(result.error.message || result.error), variant: 'destructive' });
                     }
                   } catch (err: any) {
-                    const msg = err?.message || (typeof err === 'string' ? err : 'Unknown error');
-                    if (msg !== 'CANCELLED' && !/cancel/i.test(msg)) {
+                    const { explainNativeAppleError } = await import('@/utils/nativeAppleAuth');
+                    const msg = explainNativeAppleError(err);
+                    if (msg !== 'CANCELLED') {
                       toast({ title: 'Apple sign-in failed', description: msg, variant: 'destructive' });
                     }
                   }
