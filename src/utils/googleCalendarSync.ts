@@ -189,8 +189,27 @@ export const syncCalendarToTasks = async (): Promise<{
       next = next.map((t) => (t.id === existing.id ? merged : t));
       updated++;
     } else {
-      next.push(eventToTask(ev));
-      added++;
+      // Dedup: try to find an existing un-linked local task that matches this event
+      // (same normalized title + same time slot). If found, just link it instead of
+      // creating a duplicate. This handles the "first connect" case where the user
+      // already manually has matching tasks.
+      const evStart = parseEventStart(ev);
+      const allDay = !!ev.start?.date && !ev.start?.dateTime;
+      const evTitle = normalizeTitle(ev.summary);
+      const dupIdx = next.findIndex(
+        (t) =>
+          !t.googleCalendarEventId &&
+          normalizeTitle(t.text) === evTitle &&
+          isSameSlot(t.dueDate, evStart, allDay),
+      );
+      if (dupIdx >= 0) {
+        const merged = eventToTask(ev, next[dupIdx]);
+        next[dupIdx] = merged;
+        updated++;
+      } else {
+        next.push(eventToTask(ev));
+        added++;
+      }
     }
   }
 
