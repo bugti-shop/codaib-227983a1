@@ -12,7 +12,10 @@ import {
   cancelNativeAutoPrompt,
 } from '@/utils/googleAuth';
 import { setSetting } from '@/utils/settingsStorage';
-import { startCalendarAutoSync, stopCalendarAutoSync } from '@/utils/googleCalendarSync';
+// TEMP DISABLED — Google Calendar two-way sync is paused while the Calendar
+// OAuth scopes are under verification on Google Cloud Console. Re-enable by
+// uncommenting the import below and the start/stop calls further down.
+// import { startCalendarAutoSync, stopCalendarAutoSync } from '@/utils/googleCalendarSync';
 
 interface GoogleAuthContextType {
   user: GoogleUser | null;
@@ -131,8 +134,9 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
 
     backgroundTokenRefresh().catch(() => {});
 
-    // Start two-way Google Calendar sync (pull events + push tasks, with dedup)
-    startCalendarAutoSync();
+    // TEMP DISABLED — two-way Google Calendar sync (pending Google scope
+    // verification). Re-enable once scopes are approved.
+    // startCalendarAutoSync();
 
     refreshTimerRef.current = setInterval(() => {
       backgroundTokenRefresh().then(async () => {
@@ -179,7 +183,8 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('driveReauthNeeded', handleReauthNeeded);
       window.removeEventListener('syncReconnected', handleSyncReconnected);
-      stopCalendarAutoSync();
+      // TEMP DISABLED — see note above.
+      // stopCalendarAutoSync();
     };
   }, [user?.email]);
 
