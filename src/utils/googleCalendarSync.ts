@@ -16,6 +16,26 @@ const SYNC_TOKEN_KEY = 'gcal:syncToken';
 const LAST_SYNC_KEY = 'gcal:lastSyncAt';
 const CALENDAR_ID_KEY = 'gcal:calendarId';
 const DEFAULT_CALENDAR_ID = 'primary';
+const PUSH_INDEX_KEY = 'gcal:pushedTaskIds';
+
+/** Normalize a title for fuzzy duplicate detection */
+const normalizeTitle = (s: string | undefined): string =>
+  (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/** Two dates considered "same slot" for dedup (within 2 min, or same day for all-day) */
+const isSameSlot = (a: Date | undefined, b: Date | undefined, allDay = false): boolean => {
+  if (!a || !b) return false;
+  const da = new Date(a);
+  const db = new Date(b);
+  if (allDay) {
+    return (
+      da.getFullYear() === db.getFullYear() &&
+      da.getMonth() === db.getMonth() &&
+      da.getDate() === db.getDate()
+    );
+  }
+  return Math.abs(da.getTime() - db.getTime()) < 2 * 60_000;
+};
 
 interface GCalEventTime {
   date?: string;       // YYYY-MM-DD (all-day)
