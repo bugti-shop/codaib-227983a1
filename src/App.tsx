@@ -25,6 +25,7 @@ import { NavigationBackProvider } from "@/components/NavigationBackProvider";
 import { getSetting, setSetting } from "@/utils/settingsStorage";
 import { shouldAppBeLocked, updateLastUnlockTime } from "@/utils/appLockStorage";
 import { useJourneyAdvancement } from "@/hooks/useJourneyAdvancement";
+import { RouteSkeleton } from "@/components/skeletons/RouteSkeleton";
 
 import { useAchievementToasts } from "@/hooks/useAchievementToasts";
 
@@ -240,7 +241,7 @@ const AppRoutes = () => {
         <DashboardTracker />
         <TourNavigationListener />
         <WidgetRouteListener />
-          <Suspense fallback={<BrandedFallback />}>
+          <Suspense fallback={<RouteSkeleton />}>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/notesdashboard" element={<Index />} />
