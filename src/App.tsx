@@ -454,10 +454,20 @@ const AppContent = () => {
     if (wasEverPro.current) return;
     // Soft-paywall: brand-new free users get to use the app with limits — don't kick them back to onboarding
     if (isNewFreeUser) return;
-    // No active subscription — redirect to language selection
-    setSetting('onboarding_completed', false).then(() => {
+    // No active subscription — but if the user previously completed onboarding,
+    // DO NOT wipe their progress and dump them back into language selection.
+    // The paywall (gated per-feature inside the app) is the correct gate for
+    // non-pro users. Wiping onboarding on every cold start was the root cause
+    // of "app restarts onboarding after sign-in + reopen" on iOS.
+    (async () => {
+      const alreadyOnboarded =
+        (typeof localStorage !== 'undefined' &&
+          localStorage.getItem('onboarding_completed_flag') === 'true') ||
+        (await getSetting<boolean>('onboarding_completed', false));
+      if (alreadyOnboarded) return; // keep them in the app; paywall will gate Pro features
+      await setSetting('onboarding_completed', false);
       setShowOnboarding(true);
-    });
+    })();
   }, [isPro, subLoading, showOnboarding, isVerifyingCheckout, isNewFreeUser]);
 
   // Grace period after onboarding completes — prevents the subscription effect
