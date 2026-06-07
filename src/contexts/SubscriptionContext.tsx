@@ -342,37 +342,32 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Check local 8-day free trial (no credit card required)
+  // Cross-platform 2-day device trial. Server-backed via user_lifetime_counters.
+  // Reinstalling the app does NOT reset the trial (same email or device fingerprint).
   const checkLocalTrial = useCallback(async () => {
-    if (Capacitor.isNativePlatform()) {
-      setIsLocalTrial(false);
-      setLocalTrialExpired(false);
-      setGraceExpired(false);
-      return false;
-    }
-
     try {
-      const trialStart = await getSetting<number>('flowist_trial_start', 0);
-      if (!trialStart) {
+      const startedAtIso = await initOrCheckTrial();
+      if (!startedAtIso) {
         setIsLocalTrial(false);
         setLocalTrialExpired(false);
         return false;
       }
-      const now = Date.now();
-      const elapsed = now - trialStart;
-      const trialMs = FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
-      // No grace period — trial ends exactly at FREE_TRIAL_DAYS. No silent extension.
-      if (elapsed < trialMs) {
+      // Mirror into legacy setting so other code paths keep working.
+      try {
+        const startedMs = new Date(startedAtIso).getTime();
+        if (startedMs) await setSetting('flowist_trial_start', startedMs);
+      } catch {}
+
+      if (isDeviceTrialActiveFn(startedAtIso)) {
         setIsLocalTrial(true);
         setLocalTrialExpired(false);
         setGraceExpired(false);
         return true;
-      } else {
-        setIsLocalTrial(false);
-        setLocalTrialExpired(true);
-        setGraceExpired(true);
-        return false;
       }
+      setIsLocalTrial(false);
+      setLocalTrialExpired(true);
+      setGraceExpired(true);
+      return false;
     } catch {
       return false;
     }
