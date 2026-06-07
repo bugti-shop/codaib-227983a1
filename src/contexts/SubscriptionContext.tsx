@@ -380,13 +380,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         const adminBypass = await getSetting<boolean>('flowist_admin_bypass', false);
         setLocalProAccess(!!adminBypass);
         setIsAdminBypass(!!adminBypass);
-        if (Capacitor.isNativePlatform()) {
-          setIsLocalTrial(false);
-          setLocalTrialExpired(false);
-          setGraceExpired(false);
-          await setSetting('flowist_trial_start', 0);
-        }
-        // Check local free trial — only grant access if trial actively running.
+        // Check device trial — works on web AND native now.
         // If expired, ensure localProAccess is false (unless admin bypass).
         const trialActive = await checkLocalTrial();
         if (trialActive && !adminBypass) {
