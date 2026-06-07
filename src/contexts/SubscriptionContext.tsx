@@ -1441,11 +1441,18 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return true;
   }, [canCreateWithinSoftLimit]);
 
-  // Returns true when allowed to mutate (edit/delete). Free users CAN edit/delete their existing items.
-  // Only creation of new items is blocked once lifetime quota is hit.
+  // Returns true when allowed to mutate.
+  // Pro/trial-active users: always allowed.
+  // Post-trial free users: blocked → opens dismissible paywall.
   const softRequireMutate = useCallback((): boolean => {
+    if (isPro) return true;
+    if (localTrialExpired) {
+      setPaywallFeature('trial_expired');
+      setShowPaywall(true);
+      return false;
+    }
     return true;
-  }, []);
+  }, [isPro, localTrialExpired]);
 
   // Check Stripe subscription by email (used from onboarding Google sign-in)
   const checkStripeByEmail = useCallback(async (email: string): Promise<boolean> => {
