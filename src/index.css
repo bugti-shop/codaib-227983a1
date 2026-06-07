@@ -345,7 +345,7 @@ All colors MUST be HSL.
 /* Ensure the editable area aligns perfectly with the first line and fills full height */
 .rich-text-editor.lined-note {
   padding-top: var(--first-line-offset) !important;
-  min-height: 100vh !important;
+  min-height: 100% !important;
   box-sizing: border-box;
 }
 
