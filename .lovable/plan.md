@@ -1,91 +1,77 @@
-# Migration: Native Auth → `@capgo/capacitor-social-login`
+## Goal
 
-Replace the two separate native plugins with a single unified plugin for both Google and Apple sign-in on iOS and Android. Web flow, edge functions, Drive sync, refresh-token storage, and Supabase session handling remain **unchanged** — only the native bridge swaps out.
+Har naya install: **2 din full free** (sab features except AI). 2 din baad jab bhi user kuch create/edit kre → **dismissible paywall** (X button hamesha). AI day-1 se locked. Reinstall karke trial reset nahi ho sakta (best-effort).
 
----
+## Reinstall-proofing — honest reality
 
-## What stays the same (no risk)
+100% reinstall-proof tracking impossible hai bina forced sign-in ke. Approach:
 
-- **Public API** of `src/utils/googleAuth.ts` and `src/utils/nativeAppleAuth.ts` — every exported function keeps the same signature, so no caller (`Profile.tsx`, `OnboardingFlow.tsx`, `GoogleAuthContext.tsx`, `googleDriveSync.ts`, `SubscriptionContext.tsx`, `TodoSettings.tsx`) needs changes.
-- **Edge functions** `google-exchange` and `refresh-google-token` — unchanged. Same `serverAuthCode → refresh_token` exchange, same `user_refresh_tokens` table.
-- **Web** sign-in (Supabase `signInWithOAuth`) — untouched.
-- **Drive scopes** (`drive.appdata`, `drive.file`) — preserved.
-- **Backend Apple provider** — still uses "your own credentials" with `com.flowist.app` in allowed Client IDs (we already set this up).
+1. **Server-side identifier** (Supabase `user_lifetime_counters` table extend): pehli baar app open hone pe device fingerprint hash store ho. Reinstall pe same identifier → server kehta "trial already started on X date".
+2. **Identifier priority**:
+   - Signed-in email (100% reliable)
+   - iOS: `IDFV` + Capacitor Preferences with **iCloud Keychain access group** (Keychain reinstall survive karta hai)
+   - Android: `Settings.Secure.ANDROID_ID` hash
+   - Fallback: localStorage device UUID (weak)
+3. **Bypass possible jab** user factory-reset kre + naya Apple/Google account. <2% users — acceptable.
 
----
+## Implementation steps
 
-## What changes
+### 1. Database migration
+Add to `user_lifetime_counters`:
+- `trial_started_at TIMESTAMPTZ`
+- `trial_device_fingerprint TEXT`
+- RLS update: allow anonymous insert/select/update for rows where `identifier_type = 'device'` (so anon users register trial without auth)
 
-### 1. Packages
-- **Remove:** `@codetrix-studio/capacitor-google-auth`, `@capacitor-community/apple-sign-in`
-- **Add:** `@capgo/capacitor-social-login`
+### 2. NEW utility `src/utils/deviceTrial.ts`
+- `getDeviceFingerprint()` — IDFV (iOS) / Android ID via `@capacitor/device`, stored in Keychain-backed Preferences
+- `initOrCheckTrial()` — Supabase upsert: if no row, create with `trial_started_at = now()`; if exists, return server's date
+- `getTrialDaysRemaining()` / `isTrialExpired()`
 
-### 2. `src/utils/nativeAppleAuth.ts` (rewrite ~80 lines)
-Replace `@capacitor-community/apple-sign-in` dynamic import with:
-```ts
-import { SocialLogin } from '@capgo/capacitor-social-login';
-await SocialLogin.initialize({ apple: {} });
-const res = await SocialLogin.login({
-  provider: 'apple',
-  options: { scopes: ['email','name'], nonce: hashedNonce }
-});
-// res.result.idToken → supabase.auth.signInWithIdToken({ provider:'apple', token, nonce: rawNonce })
-```
-Audience stays `com.flowist.app` (iOS bundle ID). All existing diagnostics, profile seeding, and error mapping are kept.
+### 3. `SubscriptionContext.tsx` changes
+- Make trial logic **cross-platform** (currently web-only)
+- `FREE_TRIAL_DAYS = 2`
+- Trial source: server `trial_started_at` (not localStorage)
+- New flag `isInDeviceTrial`
+- During trial → all features unlocked EXCEPT AI
+- After trial → `softRequireMutate()` returns false → opens **dismissible** paywall
 
-### 3. `src/utils/googleAuth.ts` (rewrite native section only, ~150 lines)
-Swap `loadNativeGoogle / ensureNativeInit / nativeSignIn / nativeSignOut / nativeRefresh / cancelNativeAutoPrompt` to use:
-```ts
-await SocialLogin.initialize({
-  google: {
-    iOSClientId: '<iOS clientId>',
-    webClientId: '<server clientId>',   // required for serverAuthCode
-    mode: 'offline',                     // returns serverAuthCode
-  }
-});
-const res = await SocialLogin.login({
-  provider: 'google',
-  options: { scopes: NATIVE_SCOPES, forceRefreshToken: true }
-});
-// → res.result.{ accessToken.token, idToken, serverAuthCode, profile }
-// Hand serverAuthCode to existing google-exchange edge function (unchanged)
-// Silent refresh: SocialLogin.refresh({ provider:'google' }) → new accessToken
-```
+### 4. AI gating
+`aiAccessGuard.ts`: AI features always require real Pro (not device trial). Trial users hitting AI → dismissible paywall.
 
-### 4. Native platform files
-- **iOS Podfile** — remove the two old pods, add `CapgoCapacitorSocialLogin`.
-- **Android `MainActivity.java`** — remove `registerPlugin(GoogleAuth.class)` (capgo auto-registers via Capacitor plugin discovery).
-- **Android `capacitor.settings.gradle` + `capacitor.build.gradle`** — auto-regenerated by `npx cap sync`; nothing manual.
-- **Android `strings.xml`** — keep `server_client_id` (capgo reads the same key).
-- **`capacitor.config.ts`** — remove the `GoogleAuth` plugin block (capgo configures at runtime via `initialize`).
+### 5. Paywall UI
+`PremiumPaywall` component:
+- **X close button hamesha visible** (already standard — confirm it's not hidden in any code path)
+- Top banner: "You've created {notesCount} notes & {tasksCount} tasks. Unlock unlimited."
+- Counts from `getLocalLifetimeMax('notes')` + `getLocalLifetimeMax('tasks')`
+- Translations in `en.json`, `id.json`, `zh.json`
 
-### 5. No DB / no edge function changes
-The serverAuthCode payload format is identical, so `google-exchange` and `refresh-google-token` work as-is.
+### 6. Create/edit paths
+After trial expires (and not Pro), these actions:
+- Open paywall (user can dismiss with X)
+- If dismissed → action cancelled silently, no error
+- Affects: create note/task/folder/section/sketch, edit content, add subtask
 
----
+Implementation: extend existing `softRequireMutate()` — it returns boolean, callers already handle false by aborting.
 
-## Risks & mitigations
+### 7. Onboarding
+On onboarding finish → call `initOrCheckTrial()` → dispatch `flowistTrialStarted`.
 
-| Risk | Mitigation |
-|---|---|
-| Existing signed-in users may need to tap "Sign in" once | Tokens stored in Capacitor Preferences still load; only the **native keychain** silent-refresh path resets. Backend `refresh_token` in `user_refresh_tokens` table still works → refresh succeeds without re-login. |
-| capgo Google `refresh()` API surface differs | Fallback chain already exists: native refresh → backend `refresh-google-token` (uses stored refresh_token). If `SocialLogin.refresh()` throws, backend path catches it. |
-| Apple nonce handling | capgo Apple plugin accepts the same `nonce` field; Supabase still receives the raw nonce. |
+## Files
 
----
+- `supabase/migrations/<new>.sql`
+- `src/utils/deviceTrial.ts` (NEW)
+- `src/contexts/SubscriptionContext.tsx`
+- `src/utils/aiAccessGuard.ts`
+- `src/components/PremiumPaywall.tsx` — usage banner + ensure X always visible
+- `src/i18n/locales/*.json`
+- Onboarding completion handler
 
-## Verification steps (after you `npx cap sync ios` and run in Xcode)
+## Won't change
 
-1. **Apple sign-in** → tap button → Face ID → returns to app → Profile shows name/email. Console must log `[AppleAuth] Native Apple token exchanged for backend session`.
-2. **Google sign-in** → tap "Sign in with Google" in Profile → account picker → returns to app. Console must log `Successfully obtained refresh_token from serverAuthCode`.
-3. **Drive sync** → toggle a note → check Drive sync indicator → no `driveReauthNeeded` event.
-4. **Token refresh** → backgrounding the app for 60+ min and reopening should silently refresh without UI.
+- RevenueCat purchase flow
+- Existing Pro user experience
+- Paywall close behavior (it's already dismissible — will audit to confirm no `hideClose` path exists)
 
 ---
 
-## Technical notes (for reviewers)
-
-- Indirect dynamic `import('@capgo/' + 'capacitor-social-login')` is used so Vite's web build does not try to resolve a native-only module.
-- `SocialLogin.initialize()` is idempotent and guarded by a module-level boolean (same pattern as the current `nativeInitialized` flag).
-- `SocialLogin.logout({ provider })` replaces the per-plugin `signOut()` calls.
-- iOS Apple flow returns `givenName`/`familyName` only on first authorization — existing one-shot profile-seeding logic in `nativeAppleAuth.ts` is preserved.
+**Approve karo to start kar deta hun.**

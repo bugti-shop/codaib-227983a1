@@ -10,6 +10,7 @@ import {
   pullAndMergeLifetimeCounters,
   resetAllLifetimeCounters,
 } from '@/utils/lifetimeCountersCloud';
+import { initOrCheckTrial, isTrialActive as isDeviceTrialActiveFn } from '@/utils/deviceTrial';
 import {
   Purchases,
   LOG_LEVEL,
@@ -176,8 +177,8 @@ interface UnifiedBillingContextType {
 
 const UnifiedBillingContext = createContext<UnifiedBillingContextType | undefined>(undefined);
 
-// Free trial duration in days (matches App Store / Play Store intro offer of 3 days)
-const FREE_TRIAL_DAYS = 3;
+// Free trial duration in days (device-locked, server-backed, cross-platform)
+const FREE_TRIAL_DAYS = 2;
 const GRACE_PERIOD_DAYS = 2;
 const SIGNOUT_GRACE_MS = 24 * 60 * 60 * 1000; // 1 day after sign-out
 
@@ -341,37 +342,32 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Check local 8-day free trial (no credit card required)
+  // Cross-platform 2-day device trial. Server-backed via user_lifetime_counters.
+  // Reinstalling the app does NOT reset the trial (same email or device fingerprint).
   const checkLocalTrial = useCallback(async () => {
-    if (Capacitor.isNativePlatform()) {
-      setIsLocalTrial(false);
-      setLocalTrialExpired(false);
-      setGraceExpired(false);
-      return false;
-    }
-
     try {
-      const trialStart = await getSetting<number>('flowist_trial_start', 0);
-      if (!trialStart) {
+      const startedAtIso = await initOrCheckTrial();
+      if (!startedAtIso) {
         setIsLocalTrial(false);
         setLocalTrialExpired(false);
         return false;
       }
-      const now = Date.now();
-      const elapsed = now - trialStart;
-      const trialMs = FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
-      // No grace period — trial ends exactly at FREE_TRIAL_DAYS. No silent extension.
-      if (elapsed < trialMs) {
+      // Mirror into legacy setting so other code paths keep working.
+      try {
+        const startedMs = new Date(startedAtIso).getTime();
+        if (startedMs) await setSetting('flowist_trial_start', startedMs);
+      } catch {}
+
+      if (isDeviceTrialActiveFn(startedAtIso)) {
         setIsLocalTrial(true);
         setLocalTrialExpired(false);
         setGraceExpired(false);
         return true;
-      } else {
-        setIsLocalTrial(false);
-        setLocalTrialExpired(true);
-        setGraceExpired(true);
-        return false;
       }
+      setIsLocalTrial(false);
+      setLocalTrialExpired(true);
+      setGraceExpired(true);
+      return false;
     } catch {
       return false;
     }
@@ -384,13 +380,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         const adminBypass = await getSetting<boolean>('flowist_admin_bypass', false);
         setLocalProAccess(!!adminBypass);
         setIsAdminBypass(!!adminBypass);
-        if (Capacitor.isNativePlatform()) {
-          setIsLocalTrial(false);
-          setLocalTrialExpired(false);
-          setGraceExpired(false);
-          await setSetting('flowist_trial_start', 0);
-        }
-        // Check local free trial — only grant access if trial actively running.
+        // Check device trial — works on web AND native now.
         // If expired, ensure localProAccess is false (unless admin bypass).
         const trialActive = await checkLocalTrial();
         if (trialActive && !adminBypass) {
@@ -415,7 +405,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for trial start (set when onboarding completes)
     const handleTrialStart = () => {
-      if (Capacitor.isNativePlatform()) return;
       setLocalProAccess(true);
       setIsLocalTrial(true);
       setLocalTrialExpired(false);
@@ -1344,6 +1333,15 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, [isPro, isRecurringSubscriber]);
 
   const requireFeature = useCallback((feature: PremiumFeature): boolean => {
+    // AI features are NEVER unlocked by the 2-day device trial —
+    // only real Pro (paid subscription or admin bypass) can use them.
+    if (feature === 'ai_dictation') {
+      const hasRealPro = rcIsPro || isAdminBypass;
+      if (hasRealPro) return true;
+      setPaywallFeature(feature);
+      setShowPaywall(true);
+      return false;
+    }
     if ((RECURRING_ONLY_FEATURES as readonly string[]).includes(feature)) {
       if (isRecurringSubscriber) return true;
       setPaywallFeature(feature);
@@ -1354,7 +1352,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     setPaywallFeature(feature);
     setShowPaywall(true);
     return false;
-  }, [isPro, isRecurringSubscriber]);
+  }, [isPro, isRecurringSubscriber, rcIsPro, isAdminBypass]);
 
   const openPaywall = useCallback((feature?: string) => {
     setPaywallFeature(feature || null);
@@ -1440,6 +1438,18 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   // Returns true when allowed to create. Opens paywall + returns false when lifetime quota exhausted.
   // Applies to ALL free users (not just brand-new). Pro users always allowed.
   const softRequireCreate = useCallback((kind: SoftLimitKind, currentCount: number): boolean => {
+    if (isPro) {
+      // Pro users (including trial) bypass — but still bump counter for lifetime tracking
+      const lifetimeMax = getLifetimeMax(kind);
+      bumpLifetimeMax(kind, Math.max(currentCount, lifetimeMax) + 1);
+      return true;
+    }
+    // Free user with expired device trial → hard block (dismissible paywall)
+    if (localTrialExpired) {
+      setPaywallFeature(`soft_limit_${kind}`);
+      setShowPaywall(true);
+      return false;
+    }
     if (!canCreateWithinSoftLimit(kind, currentCount)) {
       setPaywallFeature(`soft_limit_${kind}`);
       setShowPaywall(true);
@@ -1450,13 +1460,20 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     // Pre-bump: assume the upcoming create will land — record it so deletes don't reopen the gate.
     bumpLifetimeMax(kind, effectiveCount + 1);
     return true;
-  }, [canCreateWithinSoftLimit]);
+  }, [canCreateWithinSoftLimit, isPro, localTrialExpired]);
 
-  // Returns true when allowed to mutate (edit/delete). Free users CAN edit/delete their existing items.
-  // Only creation of new items is blocked once lifetime quota is hit.
+  // Returns true when allowed to mutate.
+  // Pro/trial-active users: always allowed.
+  // Post-trial free users: blocked → opens dismissible paywall.
   const softRequireMutate = useCallback((): boolean => {
+    if (isPro) return true;
+    if (localTrialExpired) {
+      setPaywallFeature('trial_expired');
+      setShowPaywall(true);
+      return false;
+    }
     return true;
-  }, []);
+  }, [isPro, localTrialExpired]);
 
   // Check Stripe subscription by email (used from onboarding Google sign-in)
   const checkStripeByEmail = useCallback(async (email: string): Promise<boolean> => {

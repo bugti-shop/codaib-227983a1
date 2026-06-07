@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { PurchasesPackage, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { triggerTripleHeavyHaptic } from '@/utils/haptics';
 import { supabase } from '@/lib/supabase';
+import { getLocalLifetimeMax } from '@/utils/lifetimeCountersCloud';
 
 import { m as motion, AnimatePresence } from 'framer-motion';
 
@@ -206,11 +207,27 @@ function usePaywallLogic() {
     ? t(`onboarding.paywall.softLimit.${softLimitKind}`, { count: SOFT_LIMIT_COUNTS[softLimitKind] })
     : null;
 
+  // Lifetime usage counts for the always-on usage banner.
+  const [usageCounts] = useState(() => ({
+    notes: getLocalLifetimeMax('notes'),
+    tasks: getLocalLifetimeMax('tasks'),
+  }));
+  const usageBanner = (usageCounts.notes > 0 || usageCounts.tasks > 0)
+    ? t('paywall.usageBanner', "You've created {{notes}} notes & {{tasks}} tasks. Unlock unlimited.", {
+        notes: usageCounts.notes,
+        tasks: usageCounts.tasks,
+      })
+    : null;
+  const trialExpiredMessage = paywallFeature === 'trial_expired'
+    ? t('paywall.trialExpired', 'Your 2-day free trial has ended. Unlock unlimited to keep creating.')
+    : null;
+
   return {
     t, showPaywall, closePaywall, isNewFreeUser, isPro, selectedPlan, setSelectedPlan, isPurchasing, isRestoring,
     adminError,
     PLANS, currentPlan, handlePurchase, handleRestore, hasUsedTrial,
     restoreEmail, setRestoreEmail, showRestoreEmail, softLimitMessage,
+    usageBanner, trialExpiredMessage,
   };
 }
 
@@ -264,7 +281,7 @@ function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> })
    VARIANT A — Timeline Feature List (Original)
    ═══════════════════════════════════════════ */
 function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> }) {
-  const { t, selectedPlan, setSelectedPlan, isPurchasing, PLANS, currentPlan, handlePurchase, hasUsedTrial, isNewFreeUser, isPro, closePaywall, softLimitMessage } = logic;
+  const { t, selectedPlan, setSelectedPlan, isPurchasing, PLANS, currentPlan, handlePurchase, hasUsedTrial, isNewFreeUser, isPro, closePaywall, softLimitMessage, usageBanner, trialExpiredMessage } = logic;
   const canDismiss = true;
 
   return (
@@ -301,6 +318,37 @@ function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> 
             }}
           >
             {softLimitMessage}
+          </motion.div>
+        )}
+
+        {!softLimitMessage && trialExpiredMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto mb-3 max-w-sm rounded-xl px-4 py-3 text-center text-sm font-semibold"
+            style={{
+              background: 'hsl(var(--primary) / 0.08)',
+              color: 'hsl(var(--primary))',
+              border: '1px solid hsl(var(--primary) / 0.2)',
+              fontFamily: "'Nunito Sans', sans-serif",
+            }}
+          >
+            {trialExpiredMessage}
+          </motion.div>
+        )}
+
+        {usageBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto mb-6 max-w-sm rounded-xl px-4 py-2.5 text-center text-[13px] font-medium"
+            style={{
+              background: 'hsl(0 0% 96.1%)',
+              color: 'hsl(0 0% 25%)',
+              fontFamily: "'Nunito Sans', sans-serif",
+            }}
+          >
+            {usageBanner}
           </motion.div>
         )}
 

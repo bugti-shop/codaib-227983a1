@@ -1667,6 +1667,8 @@
     },
     "paywall": {
       "upgradeTitle": "升级到 Flowist Pro",
+      "usageBanner": "您已创建 {{notes}} 条笔记和 {{tasks}} 个任务。解锁无限使用。",
+      "trialExpired": "您的 2 天免费试用已结束。解锁无限使用以继续创建。",
       "unlockAllFeatures": "解锁所有功能",
       "unlockAllFeaturesDesc": "深色模式、模板、同步等",
       "unlimitedEverything": "无限使用",
