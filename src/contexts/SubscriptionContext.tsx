@@ -10,6 +10,7 @@ import {
   pullAndMergeLifetimeCounters,
   resetAllLifetimeCounters,
 } from '@/utils/lifetimeCountersCloud';
+import { initOrCheckTrial, isTrialActive as isDeviceTrialActiveFn } from '@/utils/deviceTrial';
 import {
   Purchases,
   LOG_LEVEL,
