@@ -105,6 +105,13 @@ All colors MUST be HSL.
     --safe-bottom: 0px;
   }
 
+  /* iOS: nudge headers slightly up so the logo + title don't feel pushed
+     down into the notch padding. We subtract a few px from the safe area
+     inset but never go negative. */
+  body.ios-app {
+    --safe-top: max(env(safe-area-inset-top, 0px) - 6px, 0px);
+  }
+
   /* Android edge-to-edge fix: WebView extends behind system nav bar but
      100vh only covers the visual viewport, leaving a gap.  Force html/body
      to stretch to 100% of the WebView so content fills the entire area. */

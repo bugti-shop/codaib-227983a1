@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      feedback: {
+        Row: {
+          app_version: string | null
+          category: string
+          created_at: string
+          id: string
+          message: string
+          platform: string | null
+          screenshot_url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message: string
+          platform?: string | null
+          screenshot_url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          platform?: string | null
+          screenshot_url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       onboarding_responses: {
         Row: {
           created_at: string

@@ -23,6 +23,7 @@ import { AppLockSetup } from '@/components/AppLockSetup';
 import { downloadBackup, downloadData, restoreFromBackup } from '@/utils/dataBackup';
 import { createNativeBackup, isNativePlatform } from '@/utils/nativeBackup';
 import { BackupSuccessDialog } from '@/components/BackupSuccessDialog';
+import { FeedbackDialog } from '@/components/FeedbackDialog';
 
 
 import { Capacitor } from '@capacitor/core';
@@ -72,6 +73,7 @@ const TodoSettings = () => {
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -456,6 +458,7 @@ const TodoSettings = () => {
             <SettingsRow label={t('settings.shareWithFriends')} onClick={handleShareApp} />
             <SettingsRow label={t('settings.termsOfService')} onClick={() => navigate('/terms-and-conditions')} />
             <SettingsRow label={t('settings.helpFeedback')} onClick={() => setShowHelpDialog(true)} />
+            <SettingsRow label={t('settings.sendFeedback', 'Send Feedback / Report Bug')} onClick={() => setShowFeedbackDialog(true)} />
             <SettingsRow label={t('settings.privacy')} onClick={() => navigate('/privacy-policy')} />
             <SettingsRow label={t('settings.rateApp')} onClick={handleRateAndShare} />
           </div>
