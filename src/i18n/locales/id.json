@@ -1577,6 +1577,8 @@
     },
     "paywall": {
       "upgradeTitle": "Tingkatkan ke Flowist Pro",
+      "usageBanner": "Anda telah membuat {{notes}} catatan & {{tasks}} tugas. Buka unlimited.",
+      "trialExpired": "Uji coba gratis 2 hari Anda telah berakhir. Buka unlimited untuk terus membuat.",
       "unlockAllFeatures": "Buka Semua Fitur",
       "unlockAllFeaturesDesc": "Mode gelap, template, sinkronisasi, dan lainnya",
       "unlimitedEverything": "Semua Tanpa Batas",
