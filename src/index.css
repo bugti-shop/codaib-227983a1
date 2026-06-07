@@ -345,7 +345,10 @@ All colors MUST be HSL.
 /* Ensure the editable area aligns perfectly with the first line and fills full height */
 .rich-text-editor.lined-note {
   padding-top: var(--first-line-offset) !important;
-  min-height: 100% !important;
+  /* Use dynamic viewport unit with flex fallback so iOS keyboard / paste
+     reflows don't push the title input out of the flex column. */
+  min-height: 0 !important;
+  flex: 1 1 auto;
   box-sizing: border-box;
 }
 
