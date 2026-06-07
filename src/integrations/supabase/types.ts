@@ -247,6 +247,8 @@ export type Database = {
           task_folders_created: number
           task_sections_created: number
           tasks_created: number
+          trial_device_fingerprint: string | null
+          trial_started_at: string | null
           updated_at: string
         }
         Insert: {
@@ -259,6 +261,8 @@ export type Database = {
           task_folders_created?: number
           task_sections_created?: number
           tasks_created?: number
+          trial_device_fingerprint?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -271,6 +275,8 @@ export type Database = {
           task_folders_created?: number
           task_sections_created?: number
           tasks_created?: number
+          trial_device_fingerprint?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Relationships: []
