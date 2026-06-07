@@ -1577,6 +1577,8 @@
     },
     "paywall": {
       "upgradeTitle": "Upgrade to Flowist Pro",
+      "usageBanner": "You've created {{notes}} notes & {{tasks}} tasks. Unlock unlimited.",
+      "trialExpired": "Your 2-day free trial has ended. Unlock unlimited to keep creating.",
       "softLimit": {
         "notes_one": "You've used your {{count}} free note. Upgrade to Pro for unlimited.",
         "notes_other": "You've used your {{count}} free notes. Upgrade to Pro for unlimited.",
