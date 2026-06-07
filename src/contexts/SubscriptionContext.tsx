@@ -1438,6 +1438,18 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   // Returns true when allowed to create. Opens paywall + returns false when lifetime quota exhausted.
   // Applies to ALL free users (not just brand-new). Pro users always allowed.
   const softRequireCreate = useCallback((kind: SoftLimitKind, currentCount: number): boolean => {
+    if (isPro) {
+      // Pro users (including trial) bypass — but still bump counter for lifetime tracking
+      const lifetimeMax = getLifetimeMax(kind);
+      bumpLifetimeMax(kind, Math.max(currentCount, lifetimeMax) + 1);
+      return true;
+    }
+    // Free user with expired device trial → hard block (dismissible paywall)
+    if (localTrialExpired) {
+      setPaywallFeature(`soft_limit_${kind}`);
+      setShowPaywall(true);
+      return false;
+    }
     if (!canCreateWithinSoftLimit(kind, currentCount)) {
       setPaywallFeature(`soft_limit_${kind}`);
       setShowPaywall(true);
@@ -1448,7 +1460,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     // Pre-bump: assume the upcoming create will land — record it so deletes don't reopen the gate.
     bumpLifetimeMax(kind, effectiveCount + 1);
     return true;
-  }, [canCreateWithinSoftLimit]);
+  }, [canCreateWithinSoftLimit, isPro, localTrialExpired]);
 
   // Returns true when allowed to mutate.
   // Pro/trial-active users: always allowed.
