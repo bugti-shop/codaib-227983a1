@@ -368,21 +368,6 @@ function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> 
 
           <PaywallFooter logic={logic} />
 
-          {/* Apple-required subscription disclosure (Guideline 3.1.2) — placed
-              after the CTA, restore, and legal links per user request. */}
-          {Capacitor.getPlatform() === 'ios' && (
-            <div className="w-80 mt-3 rounded-lg px-3 py-2.5 text-[11px] leading-snug" style={{ background: 'hsl(0 0% 96.1%)', color: 'hsl(0 0% 30%)' }}>
-              <p className="font-semibold mb-1" style={{ color: 'hsl(0 0% 20%)' }}>
-                {t('onboarding.paywall.subTitle', 'Flowist Pro')} — {t(currentPlan.labelKey)} ({currentPlan.price})
-              </p>
-              <p>
-                {t(
-                  'onboarding.paywall.appleDisclosure',
-                  'Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless it is canceled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscription by going to your account settings on the App Store after purchase.'
-                )}
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>

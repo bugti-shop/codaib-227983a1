@@ -7,6 +7,7 @@ import { AppLogo } from '@/components/AppLogo';
 import { useSettingsPageState } from '@/hooks/useSettingsPageState';
 import { SettingsDialogs } from '@/components/settings/SettingsDialogs';
 import { SettingsSheets } from '@/components/settings/SettingsSheets';
+import { FeedbackDialog } from '@/components/FeedbackDialog';
 
 // Keys for one-time coachmarks shown across the app. Add new keys here so
 // "Show tips again" resets them all in one place.
@@ -29,6 +30,7 @@ const Settings = () => {
   const state = useSettingsPageState();
   const { t, navigate, isProSub, requireFeature, isBackingUp, hasAdminAccess } = state;
   const { openPaywall } = useSubscription();
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   // Unified row style component
   const SettingsRow = ({ label, onClick }: { label: React.ReactNode; onClick: () => void }) => (
@@ -130,6 +132,7 @@ const Settings = () => {
             <SettingsRow label={t('settings.shareWithFriends')} onClick={state.handleShareApp} />
             <SettingsRow label={t('settings.termsOfService')} onClick={() => state.setShowTermsDialog(true)} />
             <SettingsRow label={t('settings.helpFeedback')} onClick={() => state.setShowHelpDialog(true)} />
+            <SettingsRow label={t('settings.sendFeedback', 'Send Feedback / Report Bug')} onClick={() => setShowFeedbackDialog(true)} />
             <SettingsRow label={t('settings.privacy')} onClick={() => window.open('https://docs.google.com/document/d/1YY5k6mXOKJtiZjEb9ws6Aq7UQbStGy-I/edit?usp=drivesdk&ouid=105643538765333343845&rtpof=true&sd=true', '_blank')} />
             <SettingsRow label={t('settings.rateApp')} onClick={state.handleRateAndShare} />
           </div>
@@ -198,6 +201,7 @@ const Settings = () => {
         onCustomThemeSelect={state.handleCustomThemeSelect}
       />
       
+      <FeedbackDialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog} />
     </div>
   );
 };
