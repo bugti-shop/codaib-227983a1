@@ -1333,6 +1333,15 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, [isPro, isRecurringSubscriber]);
 
   const requireFeature = useCallback((feature: PremiumFeature): boolean => {
+    // AI features are NEVER unlocked by the 2-day device trial —
+    // only real Pro (paid subscription or admin bypass) can use them.
+    if (feature === 'ai_dictation') {
+      const hasRealPro = rcIsPro || isAdminBypass;
+      if (hasRealPro) return true;
+      setPaywallFeature(feature);
+      setShowPaywall(true);
+      return false;
+    }
     if ((RECURRING_ONLY_FEATURES as readonly string[]).includes(feature)) {
       if (isRecurringSubscriber) return true;
       setPaywallFeature(feature);
@@ -1343,7 +1352,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     setPaywallFeature(feature);
     setShowPaywall(true);
     return false;
-  }, [isPro, isRecurringSubscriber]);
+  }, [isPro, isRecurringSubscriber, rcIsPro, isAdminBypass]);
 
   const openPaywall = useCallback((feature?: string) => {
     setPaywallFeature(feature || null);
