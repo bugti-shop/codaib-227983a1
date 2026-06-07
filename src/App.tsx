@@ -356,13 +356,18 @@ const AppContent = () => {
     const handleReset = () => {
       awaitingSubscriptionChoice.current = false;
       sessionStorage.removeItem('awaitingSubscriptionChoice');
-      setShowOnboarding(true);
-      // Web: also send user back to landing page on sign-out / expiry
+      // Only force a returning user through onboarding/language again if they
+      // truly have never completed it. Otherwise it's a frustrating dead-end.
+      const alreadyOnboarded = (() => {
+        try { return localStorage.getItem('onboarding_completed_flag') === 'true'; } catch { return false; }
+      })();
+      if (!alreadyOnboarded) setShowOnboarding(true);
+      // Web: send signed-out users back to landing, but KEEP onboarding flag
+      // so they don't get dumped into the language picker again on re-login.
       if (!isNative) {
         try {
           localStorage.removeItem('flowist_user_engaged');
           localStorage.removeItem('flowist_landing_acknowledged');
-          localStorage.removeItem('onboarding_completed_flag');
           sessionStorage.removeItem('flowist_landing_acknowledged');
         } catch {}
         setShowLanding(true);
@@ -406,7 +411,6 @@ const AppContent = () => {
         try {
           localStorage.removeItem('flowist_user_engaged');
           localStorage.removeItem('flowist_landing_acknowledged');
-          localStorage.removeItem('onboarding_completed_flag');
           sessionStorage.removeItem('flowist_landing_acknowledged');
         } catch {}
         setShowLanding(true);
