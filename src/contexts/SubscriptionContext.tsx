@@ -405,7 +405,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
     // Listen for trial start (set when onboarding completes)
     const handleTrialStart = () => {
-      if (Capacitor.isNativePlatform()) return;
       setLocalProAccess(true);
       setIsLocalTrial(true);
       setLocalTrialExpired(false);
