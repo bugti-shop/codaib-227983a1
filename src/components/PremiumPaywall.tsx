@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { PurchasesPackage, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { triggerTripleHeavyHaptic } from '@/utils/haptics';
 import { supabase } from '@/lib/supabase';
+import { getLocalLifetimeMax } from '@/utils/lifetimeCountersCloud';
 
 import { m as motion, AnimatePresence } from 'framer-motion';
 
@@ -206,11 +207,27 @@ function usePaywallLogic() {
     ? t(`onboarding.paywall.softLimit.${softLimitKind}`, { count: SOFT_LIMIT_COUNTS[softLimitKind] })
     : null;
 
+  // Lifetime usage counts for the always-on usage banner.
+  const [usageCounts] = useState(() => ({
+    notes: getLocalLifetimeMax('notes'),
+    tasks: getLocalLifetimeMax('tasks'),
+  }));
+  const usageBanner = (usageCounts.notes > 0 || usageCounts.tasks > 0)
+    ? t('paywall.usageBanner', "You've created {{notes}} notes & {{tasks}} tasks. Unlock unlimited.", {
+        notes: usageCounts.notes,
+        tasks: usageCounts.tasks,
+      })
+    : null;
+  const trialExpiredMessage = paywallFeature === 'trial_expired'
+    ? t('paywall.trialExpired', 'Your 2-day free trial has ended. Unlock unlimited to keep creating.')
+    : null;
+
   return {
     t, showPaywall, closePaywall, isNewFreeUser, isPro, selectedPlan, setSelectedPlan, isPurchasing, isRestoring,
     adminError,
     PLANS, currentPlan, handlePurchase, handleRestore, hasUsedTrial,
     restoreEmail, setRestoreEmail, showRestoreEmail, softLimitMessage,
+    usageBanner, trialExpiredMessage,
   };
 }
 
