@@ -13,6 +13,7 @@ const config: CapacitorConfig = {
       launchShowDuration: 0,
       showSpinner: false,
       backgroundColor: '#ffffff',
+      backgroundColorDark: '#000000',
     },
     // Native Google + Apple sign-in are configured at runtime via
     // @capgo/capacitor-social-login → SocialLogin.initialize() in
