@@ -10,9 +10,22 @@ import { useNavigate } from "react-router-dom";
 const useWidgetRedirect = (target: string) => {
   const navigate = useNavigate();
   useEffect(() => {
+    // Fire immediately, and re-fire shortly after in case the router is
+    // still initializing during cold-start from a widget tap.
     navigate(target, { replace: true });
+    const t = window.setTimeout(() => navigate(target, { replace: true }), 120);
+    return () => window.clearTimeout(t);
   }, [navigate, target]);
-  return null;
+  // Visible fallback so users never see a blank screen if redirect is slow.
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: 'hsl(var(--background))',
+      color: 'hsl(var(--muted-foreground))', fontSize: 14,
+    }}>
+      Opening…
+    </div>
+  );
 };
 
 export const WidgetAddTask = () => useWidgetRedirect("/todo/today?add=1");
