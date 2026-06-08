@@ -16,14 +16,14 @@
         android:textStyle="bold"
         android:layout_marginBottom="10dp" />
 
-    <View android:layout_width="match_parent" android:layout_height="1dp"
+    <FrameLayout android:layout_width="match_parent" android:layout_height="1dp"
         android:layout_marginTop="6dp" android:background="#94A3B8" />
-    <View android:layout_width="match_parent" android:layout_height="1dp"
+    <FrameLayout android:layout_width="match_parent" android:layout_height="1dp"
         android:layout_marginTop="14dp" android:background="#94A3B8" />
-    <View android:layout_width="match_parent" android:layout_height="1dp"
+    <FrameLayout android:layout_width="match_parent" android:layout_height="1dp"
         android:layout_marginTop="14dp" android:background="#94A3B8" />
-    <View android:layout_width="match_parent" android:layout_height="1dp"
+    <FrameLayout android:layout_width="match_parent" android:layout_height="1dp"
         android:layout_marginTop="14dp" android:background="#94A3B8" />
-    <View android:layout_width="match_parent" android:layout_height="1dp"
+    <FrameLayout android:layout_width="match_parent" android:layout_height="1dp"
         android:layout_marginTop="14dp" android:background="#94A3B8" />
 </LinearLayout>
