@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect, startTransition, useDeferredValue, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { TodoItem, Priority, TaskSection, TaskStatus } from '@/types/note';
 import { Play, Pause, Repeat, Check, Trash2 as TrashIcon, Edit, Plus as PlusIcon, ArrowUpCircle, ArrowDownCircle, Move, History, TrendingUp, Flag, Pin } from 'lucide-react';
 import { Plus, FolderIcon, ChevronRight, ChevronDown, MoreVertical, Copy, LayoutList, Trash2, Tag, Columns3, GitBranch, ListChecks, Star } from 'lucide-react';
@@ -77,6 +78,7 @@ const FlatView = lazy(flatFactory);
 
 const Today = () => {
   const { t } = useTranslation();
+  const location = useLocation();
   const { softRequireCreate, canCreateWithinSoftLimit } = useSubscription();
 
   // ── All state from extracted hook ──
@@ -136,22 +138,20 @@ const Today = () => {
     sortedSections, toggleViewSectionCollapse, handleClearFilters,
   } = state;
 
-  // Widget deep-link: ?add=1 → auto-open the task input sheet (AddTask home-screen widget tap)
+  // Widget deep-link: ?add=1 → auto-open the task input sheet.
+  // Re-runs on every search change so tapping a different widget while the
+  // page is already mounted still triggers the action.
   useEffect(() => {
-    let fired = false;
     const checkAddParam = () => {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('add') === '1') {
-        if (fired) return;
-        fired = true;
-        setIsInputOpen(true);
-        params.delete('add');
-        const qs = params.toString();
-        window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
-      }
+      if (params.get('add') !== '1') return;
+      setIsInputOpen(true);
+      params.delete('add');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
     };
     checkAddParam();
-    // Cold-start safety: the widget pending-path may be drained AFTER this mount.
+    // Cold-start safety: widget pending-path may drain AFTER this mount.
     const t1 = window.setTimeout(checkAddParam, 250);
     const t2 = window.setTimeout(checkAddParam, 800);
     window.addEventListener('popstate', checkAddParam);
@@ -159,7 +159,7 @@ const Today = () => {
       window.clearTimeout(t1); window.clearTimeout(t2);
       window.removeEventListener('popstate', checkAddParam);
     };
-  }, [setIsInputOpen]);
+  }, [location.search, setIsInputOpen]);
 
   useEffect(() => {
     const preloadViewChunks = () => {
