@@ -51,6 +51,7 @@ import { uploadCategory } from '@/utils/googleDriveSync';
 const Index = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   
   
@@ -420,16 +421,14 @@ const Index = () => {
   }, []);
 
   // Home-screen widget deep-link: /notesdashboard?newNote=<type>
-  // Handles both cold-start (URL pre-populated) and warm resume (drain pushes URL + popstate).
+  // Re-runs on every search change so tapping a different widget while the
+  // page is already mounted still opens the right editor.
   useEffect(() => {
     const VALID: NoteType[] = ['sticky', 'lined', 'regular', 'code', 'sketch', 'voice', 'textformat', 'linkedin'];
-    const fired = { current: false } as { current: boolean };
     const tryOpen = () => {
       const params = new URLSearchParams(window.location.search);
       const t = params.get('newNote') as NoteType | null;
       if (!t || !VALID.includes(t)) return;
-      if (fired.current) return;
-      fired.current = true;
       handleCreateNote(t);
       params.delete('newNote');
       const qs = params.toString();
@@ -437,7 +436,6 @@ const Index = () => {
     };
     tryOpen();
     // Cold-start safety: pending widget path may be drained AFTER this mount.
-    // Re-check a few times in case Capacitor Preferences drain happens slightly later.
     const t1 = window.setTimeout(tryOpen, 250);
     const t2 = window.setTimeout(tryOpen, 800);
     window.addEventListener('popstate', tryOpen);
@@ -445,7 +443,7 @@ const Index = () => {
       window.clearTimeout(t1); window.clearTimeout(t2);
       window.removeEventListener('popstate', tryOpen);
     };
-  }, []);
+  }, [location.search]);
 
   const handleEditNote = async (note: Note) => {
     if (note.type === 'sketch' && !requireFeature('sketch')) return;
