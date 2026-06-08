@@ -414,6 +414,23 @@ function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> 
             {t('onboarding.noCommitment', 'No Commitment, cancel anytime')}
           </p>
 
+          <p
+            className="text-[11px] leading-snug text-center mt-2 px-4 max-w-sm"
+            style={{ color: 'hsl(0 0% 55%)', fontFamily: "'Nunito Sans', sans-serif" }}
+          >
+            {(!hasUsedTrial && currentPlan.hasTrial)
+              ? t(
+                  'paywall.trialDisclosure',
+                  '3-day free trial, then {{price}} auto-renews until cancelled. Cancel anytime in your App Store / Google Play account settings at least 24 hours before the trial ends to avoid charges.',
+                  { price: currentPlan.price }
+                )
+              : t(
+                  'paywall.renewDisclosure',
+                  'Subscription renews automatically at {{price}} until cancelled. Manage or cancel anytime in your App Store / Google Play account settings.',
+                  { price: currentPlan.price }
+                )}
+          </p>
+
           <PaywallFooter logic={logic} />
 
         </div>
