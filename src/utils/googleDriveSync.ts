@@ -37,6 +37,7 @@ export interface SyncCategoryProgress {
   label: string;
   status: 'pending' | 'in_progress' | 'done' | 'error' | 'skipped';
   itemCount?: number;
+  error?: string;
 }
 
 export interface SyncProgressEvent {
@@ -122,25 +123,25 @@ const fileIdCache = new Map<string, string>();
 const INITIAL_SYNC_DELAY = 1200;
 
 const warmDriveFileCache = async (reason: 'upload' | 'restore' | 'sync' = 'sync'): Promise<void> => {
-  try {
-    const res = await driveFetch(
-      `${DRIVE_API}/files?spaces=appDataFolder&q='appDataFolder' in parents and trashed=false&fields=files(id,name)&pageSize=50`,
-    );
+  const res = await driveFetch(
+    `${DRIVE_API}/files?spaces=appDataFolder&q='appDataFolder' in parents and trashed=false&fields=files(id,name)&pageSize=50`,
+  );
 
-    if (!res.ok) {
-      console.error(`[DriveSync] ❌ File list failed before ${reason}: ${res.status} ${res.statusText}`);
-      return;
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`[DriveSync] ❌ File list failed before ${reason}: ${res.status} ${res.statusText} ${body}`);
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`Google Drive permission denied (${res.status}). Please sign out and sign in again to re-grant Drive access.`);
     }
-
-    const data = await res.json();
-    const fileCount = data.files?.length || 0;
-    for (const f of data.files || []) {
-      if (f.name && f.id) fileIdCache.set(f.name, f.id);
-    }
-    console.log(`[DriveSync] 📂 Cached ${fileCount} Drive files before ${reason}`);
-  } catch (e) {
-    console.error(`[DriveSync] ❌ File list error before ${reason}:`, e);
+    throw new Error(`Drive list failed (${res.status}): ${body.slice(0, 200)}`);
   }
+
+  const data = await res.json();
+  const fileCount = data.files?.length || 0;
+  for (const f of data.files || []) {
+    if (f.name && f.id) fileIdCache.set(f.name, f.id);
+  }
+  console.log(`[DriveSync] 📂 Cached ${fileCount} Drive files before ${reason}`);
 };
 
 /** Find a file by name in appDataFolder. Returns file ID or null. Uses cache. */
@@ -193,7 +194,10 @@ const createFile = async (fileName: string, data: any): Promise<string> => {
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body: multipart,
   });
-  if (!res.ok) throw new Error(`Drive create failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Drive create failed (${res.status}): ${body.slice(0, 200)}`);
+  }
   const result = await res.json();
   fileIdCache.set(fileName, result.id);
   return result.id;
@@ -221,7 +225,10 @@ const updateFile = async (fileId: string, fileName: string, data: any): Promise<
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body: multipart,
   });
-  if (!res.ok) throw new Error(`Drive update failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Drive update failed (${res.status}): ${body.slice(0, 200)}`);
+  }
   const result = await res.json();
   return result.id;
 };
@@ -682,7 +689,11 @@ export const uploadToDrive = async (): Promise<void> => {
         }
       } catch (err) {
         console.error(`[DriveSync] ❌ Failed to upload ${cat.fileName}:`, err);
-        catProgress[i] = { ...catProgress[i], status: 'error' };
+        catProgress[i] = {
+          ...catProgress[i],
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+        };
       }
       completed++;
       updateProgress();

@@ -143,7 +143,9 @@ export function SyncProgressSheet() {
                     <p className="text-[11px] text-muted-foreground">Disabled in sync settings</p>
                   )}
                   {cat.status === 'error' && (
-                    <p className="text-[11px] text-destructive">Failed</p>
+                    <p className="text-[11px] text-destructive break-words">
+                      {cat.error || 'Failed'}
+                    </p>
                   )}
                 </div>
                 <StatusIcon status={cat.status} />
