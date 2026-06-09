@@ -194,7 +194,10 @@ const createFile = async (fileName: string, data: any): Promise<string> => {
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body: multipart,
   });
-  if (!res.ok) throw new Error(`Drive create failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Drive create failed (${res.status}): ${body.slice(0, 200)}`);
+  }
   const result = await res.json();
   fileIdCache.set(fileName, result.id);
   return result.id;
@@ -222,7 +225,10 @@ const updateFile = async (fileId: string, fileName: string, data: any): Promise<
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body: multipart,
   });
-  if (!res.ok) throw new Error(`Drive update failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Drive update failed (${res.status}): ${body.slice(0, 200)}`);
+  }
   const result = await res.json();
   return result.id;
 };
