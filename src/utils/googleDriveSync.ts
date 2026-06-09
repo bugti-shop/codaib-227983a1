@@ -37,6 +37,7 @@ export interface SyncCategoryProgress {
   label: string;
   status: 'pending' | 'in_progress' | 'done' | 'error' | 'skipped';
   itemCount?: number;
+  error?: string;
 }
 
 export interface SyncProgressEvent {
