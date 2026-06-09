@@ -689,7 +689,11 @@ export const uploadToDrive = async (): Promise<void> => {
         }
       } catch (err) {
         console.error(`[DriveSync] ❌ Failed to upload ${cat.fileName}:`, err);
-        catProgress[i] = { ...catProgress[i], status: 'error' };
+        catProgress[i] = {
+          ...catProgress[i],
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+        };
       }
       completed++;
       updateProgress();
