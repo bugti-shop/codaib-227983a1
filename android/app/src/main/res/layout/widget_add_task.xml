@@ -34,21 +34,21 @@
             android:text="e.g. Buy groceries tomorrow at…" />
 
         <ImageView
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginStart="6dp"
-            android:padding="6dp"
-            android:background="@drawable/widget_plus_bg"
-            android:src="@drawable/ic_widget_plus"
+            android:padding="7dp"
+            android:background="@drawable/widget_icon_btn_bg"
+            android:src="@drawable/ic_widget_scan"
             android:contentDescription="Scan" />
 
         <ImageView
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginStart="6dp"
-            android:padding="6dp"
-            android:background="@drawable/widget_plus_bg"
-            android:src="@drawable/ic_widget_plus"
+            android:padding="7dp"
+            android:background="@drawable/widget_icon_btn_bg"
+            android:src="@drawable/ic_widget_sparkle"
             android:contentDescription="AI" />
     </LinearLayout>
 
@@ -71,7 +71,7 @@
             android:textColor="#2563EB"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:background="@drawable/widget_plus_bg"
+            android:background="@drawable/widget_chip_selected"
             android:text="Templates" />
 
         <TextView
@@ -86,8 +86,23 @@
             android:gravity="center"
             android:textColor="#374151"
             android:textSize="12sp"
-            android:background="@drawable/widget_bg"
+            android:background="@drawable/widget_chip_unselected"
             android:text="Date" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:gravity="center"
+            android:textColor="#374151"
+            android:textSize="12sp"
+            android:background="@drawable/widget_chip_unselected"
+            android:text="Deadline" />
 
         <TextView
             android:layout_width="0dp"
@@ -100,7 +115,7 @@
             android:gravity="center"
             android:textColor="#374151"
             android:textSize="12sp"
-            android:background="@drawable/widget_bg"
-            android:text="Deadline" />
+            android:background="@drawable/widget_chip_unselected"
+            android:text="Priority" />
     </LinearLayout>
 </LinearLayout>
