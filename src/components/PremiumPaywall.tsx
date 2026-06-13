@@ -323,7 +323,7 @@ function FeaturesComparison() {
       className="mx-auto w-full max-w-sm rounded-2xl overflow-hidden"
       style={{ border: '1px solid hsl(0 0% 89.8%)', background: 'hsl(0 0% 100%)' }}
     >
-      <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-2.5" style={{ background: 'hsl(0 0% 96.5%)' }}>
+      <div className="grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5" style={{ background: 'hsl(0 0% 96.5%)' }}>
         <span className="text-[13px] font-bold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>Features</span>
         <span className="text-center text-[13px] font-bold" style={{ color: 'hsl(0 0% 45%)' }}>Free</span>
         <span className="text-center text-[13px] font-bold" style={{ color: PRO_BLUE }}>Pro</span>
@@ -331,10 +331,10 @@ function FeaturesComparison() {
       {COMPARISON_FEATURES.map((row, i) => (
         <div
           key={row.label}
-          className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-2.5 relative"
+          className="grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5 relative"
           style={{ borderTop: i === 0 ? 'none' : '1px solid hsl(0 0% 93%)' }}
         >
-          <span className="text-sm whitespace-nowrap" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
+          <span className="text-[13px] whitespace-nowrap" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
           <div className="text-center"><FeatureCell value={row.free} /></div>
           <div className="text-center" style={{ background: `${PRO_BLUE}14` }}><FeatureCell value={row.pro} /></div>
         </div>
