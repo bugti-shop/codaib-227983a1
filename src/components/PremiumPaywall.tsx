@@ -288,7 +288,7 @@ const COMPARISON_FEATURES: { label: string; free: string | 'x' | 'check'; pro: s
   { label: 'Reminders', free: 'Limited', pro: 'Unlimited' },
   { label: 'View Layouts', free: '1', pro: 'All' },
   { label: 'Dark Mode', free: 'x', pro: 'check' },
-  { label: 'Customize Notes Visibility', free: 'x', pro: 'check' },
+  { label: 'Customize Everything', free: 'x', pro: 'check' },
   { label: 'Deadlines', free: 'x', pro: 'check' },
   { label: 'Widgets', free: 'x', pro: 'check' },
   { label: 'App Lock', free: 'x', pro: 'check' },
@@ -312,7 +312,7 @@ function FeatureCell({ value }: { value: string }) {
       </div>
     );
   }
-  return <span className="text-sm font-semibold" style={{ color: 'hsl(0 0% 25%)' }}>{value}</span>;
+  return <span className="text-[12px] font-semibold whitespace-nowrap" style={{ color: 'hsl(0 0% 25%)' }}>{value}</span>;
 }
 
 function FeaturesComparison() {
