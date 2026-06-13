@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import appLogo from '@/assets/app-logo.webp';
 import { useTranslation } from 'react-i18next';
-import { Crown, Unlock, Bell, Gift, Check, X } from 'lucide-react';
+import { Crown, Unlock, Bell, Gift, Check, X, Lock } from 'lucide-react';
 import { useSubscription, ProductType } from '@/contexts/SubscriptionContext';
 import { Capacitor } from '@capacitor/core';
 import { PurchasesPackage, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
@@ -352,35 +352,19 @@ function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> 
           </motion.div>
         )}
 
-        {/* Feature timeline */}
-        <div className="flex flex-col items-start mx-auto w-80 relative">
-          <div className="absolute left-[10.5px] top-[20px] bottom-[20px] w-[11px] rounded-b-full" style={{ background: 'hsl(var(--primary) / 0.2)' }} />
+        {/* Free vs Pro features comparison */}
+        <FeaturesComparison />
 
-
-          {[
-            { icon: <Unlock size={16} strokeWidth={2} />, title: t('onboarding.paywall.unlockAllFeatures'), desc: t('onboarding.paywall.unlockAllFeaturesDesc') },
-            { icon: <Bell size={16} strokeWidth={2} />, title: t('onboarding.paywall.unlimitedEverything'), desc: t('onboarding.paywall.unlimitedEverythingDesc') },
-            { icon: <Crown size={16} strokeWidth={2} />, title: t('onboarding.paywall.proMember'), desc: t('onboarding.paywall.proMemberDesc') },
-          ].map((item, i) => (
-            <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i }} className="flex items-start gap-3 mb-6 relative">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground z-10 flex-shrink-0">{item.icon}</div>
-              <div>
-                <p className="font-semibold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>{item.title}</p>
-                <p className="text-sm" style={{ color: 'hsl(0 0% 45.1%)' }}>{item.desc}</p>
-              </div>
-            </motion.div>
-          ))}
-
-          {!hasUsedTrial && (selectedPlan === 'monthly' || selectedPlan === 'yearly') && (
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="flex items-start gap-3 mb-6 relative">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground z-10 flex-shrink-0"><Gift size={16} strokeWidth={2} /></div>
-              <div>
-                <p className="font-semibold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>{t('onboarding.paywall.freeTrial14')}</p>
-                <p className="text-sm" style={{ color: 'hsl(0 0% 45.1%)' }}>{t('onboarding.paywall.tryFree14')}</p>
-              </div>
-            </motion.div>
-          )}
-        </div>
+        {!hasUsedTrial && (selectedPlan === 'monthly' || selectedPlan === 'yearly') && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mx-auto max-w-sm flex items-center gap-2 justify-center">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#3c78f0' }}>
+              <Gift size={14} strokeWidth={2.5} color="#fff" />
+            </div>
+            <p className="text-sm font-semibold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>
+              {t('onboarding.paywall.freeTrial14')}
+            </p>
+          </motion.div>
+        )}
 
         {/* Plan cards */}
         <div className="mt-10 flex flex-col items-center gap-4">
