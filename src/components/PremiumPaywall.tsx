@@ -320,10 +320,16 @@ function FeaturesComparison() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto w-full max-w-sm rounded-2xl overflow-hidden"
+      className="mx-auto w-full max-w-sm rounded-2xl overflow-hidden relative"
       style={{ border: '1px solid hsl(0 0% 89.8%)', background: 'hsl(0 0% 100%)' }}
     >
-      <div className="grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5" style={{ background: 'hsl(0 0% 96.5%)' }}>
+      {/* Continuous Pro column highlight (spans header + all rows) */}
+      <div
+        aria-hidden
+        className="absolute top-0 bottom-0 pointer-events-none"
+        style={{ right: 0, width: `${(1 / 3.8) * 100}%`, background: `${PRO_BLUE}14` }}
+      />
+      <div className="relative grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5" style={{ background: 'hsl(0 0% 96.5%)' }}>
         <span className="text-[13px] font-bold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>Features</span>
         <span className="text-center text-[13px] font-bold" style={{ color: 'hsl(0 0% 45%)' }}>Free</span>
         <span className="text-center text-[13px] font-bold" style={{ color: PRO_BLUE }}>Pro</span>
@@ -331,12 +337,12 @@ function FeaturesComparison() {
       {COMPARISON_FEATURES.map((row, i) => (
         <div
           key={row.label}
-          className="grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5 relative"
+          className="relative grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5"
           style={{ borderTop: i === 0 ? 'none' : '1px solid hsl(0 0% 93%)' }}
         >
           <span className="text-[13px] whitespace-nowrap" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
           <div className="text-center"><FeatureCell value={row.free} /></div>
-          <div className="text-center" style={{ background: `${PRO_BLUE}14` }}><FeatureCell value={row.pro} /></div>
+          <div className="text-center"><FeatureCell value={row.pro} /></div>
         </div>
       ))}
     </motion.div>
