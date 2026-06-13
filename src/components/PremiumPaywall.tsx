@@ -285,11 +285,11 @@ const COMPARISON_FEATURES: { label: string; free: string | 'x' | 'check'; pro: s
   { label: 'Tasks', free: '1', pro: 'Unlimited' },
   { label: 'Sections', free: '2', pro: 'Unlimited' },
   { label: 'Folders', free: '2', pro: 'Unlimited' },
+  { label: 'Reminders', free: 'Limited', pro: 'Unlimited' },
   { label: 'View Layouts', free: '1', pro: 'All' },
   { label: 'Dark Mode', free: 'x', pro: 'check' },
   { label: 'Customize Notes Visibility', free: 'x', pro: 'check' },
   { label: 'Deadlines', free: 'x', pro: 'check' },
-  { label: 'Reminders', free: 'Limited', pro: 'Unlimited' },
   { label: 'Widgets', free: 'x', pro: 'check' },
   { label: 'App Lock', free: 'x', pro: 'check' },
   { label: 'Customization', free: 'x', pro: 'check' },
@@ -331,12 +331,12 @@ function FeaturesComparison() {
       {COMPARISON_FEATURES.map((row, i) => (
         <div
           key={row.label}
-          className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-2.5"
-          style={{ background: i % 2 === 0 ? 'hsl(0 0% 100%)' : 'hsl(0 0% 98%)' }}
+          className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-2.5 relative"
+          style={{ borderTop: i === 0 ? 'none' : '1px solid hsl(0 0% 93%)' }}
         >
-          <span className="text-sm" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
+          <span className="text-sm whitespace-nowrap" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
           <div className="text-center"><FeatureCell value={row.free} /></div>
-          <div className="text-center"><FeatureCell value={row.pro} /></div>
+          <div className="text-center" style={{ background: `${PRO_BLUE}14` }}><FeatureCell value={row.pro} /></div>
         </div>
       ))}
     </motion.div>
