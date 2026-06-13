@@ -280,6 +280,69 @@ function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> })
 /* ═══════════════════════════════════════════
    VARIANT A — Timeline Feature List (Original)
    ═══════════════════════════════════════════ */
+const COMPARISON_FEATURES: { label: string; free: string | 'x' | 'check'; pro: string | 'check' }[] = [
+  { label: 'Notes', free: '2', pro: 'Unlimited' },
+  { label: 'Tasks', free: '1', pro: 'Unlimited' },
+  { label: 'Sections', free: '2', pro: 'Unlimited' },
+  { label: 'Folders', free: '2', pro: 'Unlimited' },
+  { label: 'View Layouts', free: '1', pro: 'All' },
+  { label: 'Dark Mode', free: 'x', pro: 'check' },
+  { label: 'Customize Notes Visibility', free: 'x', pro: 'check' },
+  { label: 'Deadlines', free: 'x', pro: 'check' },
+  { label: 'Reminders', free: 'Limited', pro: 'Unlimited' },
+  { label: 'Widgets', free: 'x', pro: 'check' },
+  { label: 'App Lock', free: 'x', pro: 'check' },
+  { label: 'Customization', free: 'x', pro: 'check' },
+];
+
+const PRO_BLUE = '#3c78f0';
+
+function FeatureCell({ value }: { value: string }) {
+  if (value === 'check') {
+    return (
+      <div className="w-6 h-6 rounded-full flex items-center justify-center mx-auto" style={{ background: PRO_BLUE }}>
+        <Check size={14} strokeWidth={3} color="#fff" />
+      </div>
+    );
+  }
+  if (value === 'x') {
+    return (
+      <div className="w-6 h-6 rounded-full flex items-center justify-center mx-auto" style={{ background: 'hsl(0 0% 92%)' }}>
+        <Lock size={12} strokeWidth={2.5} color="hsl(0 0% 45%)" />
+      </div>
+    );
+  }
+  return <span className="text-sm font-semibold" style={{ color: 'hsl(0 0% 25%)' }}>{value}</span>;
+}
+
+function FeaturesComparison() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto w-full max-w-sm rounded-2xl overflow-hidden"
+      style={{ border: '1px solid hsl(0 0% 89.8%)', background: 'hsl(0 0% 100%)' }}
+    >
+      <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-2.5" style={{ background: 'hsl(0 0% 96.5%)' }}>
+        <span className="text-[13px] font-bold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>Features</span>
+        <span className="text-center text-[13px] font-bold" style={{ color: 'hsl(0 0% 45%)' }}>Free</span>
+        <span className="text-center text-[13px] font-bold" style={{ color: PRO_BLUE }}>Pro</span>
+      </div>
+      {COMPARISON_FEATURES.map((row, i) => (
+        <div
+          key={row.label}
+          className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-2.5"
+          style={{ background: i % 2 === 0 ? 'hsl(0 0% 100%)' : 'hsl(0 0% 98%)' }}
+        >
+          <span className="text-sm" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
+          <div className="text-center"><FeatureCell value={row.free} /></div>
+          <div className="text-center"><FeatureCell value={row.pro} /></div>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
 function PaywallVariantA({ logic }: { logic: ReturnType<typeof usePaywallLogic> }) {
   const { t, selectedPlan, setSelectedPlan, isPurchasing, PLANS, currentPlan, handlePurchase, hasUsedTrial, isNewFreeUser, isPro, closePaywall, softLimitMessage, usageBanner, trialExpiredMessage } = logic;
   const canDismiss = true;
