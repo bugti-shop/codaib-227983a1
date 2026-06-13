@@ -327,7 +327,7 @@ function FeaturesComparison() {
       <div
         aria-hidden
         className="absolute top-0 bottom-0 pointer-events-none z-10"
-        style={{ right: 0, width: `${(1 / 3.8) * 100}%`, background: `${PRO_BLUE}14` }}
+        style={{ right: 0, width: `${(1 / 3.8) * 100}%`, background: `${PRO_BLUE}28` }}
       />
       <div className="relative z-20 grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5">
         <span className="text-[13px] font-bold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>Features</span>
