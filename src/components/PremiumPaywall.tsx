@@ -326,10 +326,10 @@ function FeaturesComparison() {
       {/* Continuous Pro column highlight (spans header + all rows) */}
       <div
         aria-hidden
-        className="absolute top-0 bottom-0 pointer-events-none"
+        className="absolute top-0 bottom-0 pointer-events-none z-10"
         style={{ right: 0, width: `${(1 / 3.8) * 100}%`, background: `${PRO_BLUE}14` }}
       />
-      <div className="relative grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5" style={{ background: 'hsl(0 0% 96.5%)' }}>
+      <div className="relative z-20 grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5">
         <span className="text-[13px] font-bold" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito', sans-serif" }}>Features</span>
         <span className="text-center text-[13px] font-bold" style={{ color: 'hsl(0 0% 45%)' }}>Free</span>
         <span className="text-center text-[13px] font-bold" style={{ color: PRO_BLUE }}>Pro</span>
@@ -337,7 +337,7 @@ function FeaturesComparison() {
       {COMPARISON_FEATURES.map((row, i) => (
         <div
           key={row.label}
-          className="relative grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5"
+          className="relative z-20 grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5"
           style={{ borderTop: i === 0 ? 'none' : '1px solid hsl(0 0% 93%)' }}
         >
           <span className="text-[13px] whitespace-nowrap" style={{ color: 'hsl(0 0% 3.9%)', fontFamily: "'Nunito Sans', sans-serif" }}>{row.label}</span>
