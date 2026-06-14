@@ -320,6 +320,10 @@ function FeatureCell({ value }: { value: string }) {
 }
 
 function FeaturesComparison() {
+  const VISIBLE_COUNT = 7;
+  const [expanded, setExpanded] = useState(false);
+  const visibleRows = expanded ? COMPARISON_FEATURES : COMPARISON_FEATURES.slice(0, VISIBLE_COUNT);
+  const hiddenCount = COMPARISON_FEATURES.length - VISIBLE_COUNT;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -338,7 +342,7 @@ function FeaturesComparison() {
         <span className="text-center text-[13px] font-bold" style={{ color: 'hsl(0 0% 45%)' }}>Free</span>
         <span className="text-center text-[13px] font-bold" style={{ color: PRO_BLUE }}>Pro</span>
       </div>
-      {COMPARISON_FEATURES.map((row, i) => (
+      {visibleRows.map((row, i) => (
         <div
           key={row.label}
           className="relative z-20 grid grid-cols-[1.8fr_1fr_1fr] items-center px-4 py-2.5"
@@ -349,6 +353,16 @@ function FeaturesComparison() {
           <div className="text-center"><FeatureCell value={row.pro} /></div>
         </div>
       ))}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="relative z-20 w-full px-4 py-2.5 text-[12px] font-semibold active:opacity-70 transition-opacity"
+          style={{ borderTop: '1px solid hsl(0 0% 93%)', color: PRO_BLUE, background: 'transparent' }}
+        >
+          {expanded ? 'Show less' : `Show ${hiddenCount} more Pro features`}
+        </button>
+      )}
     </motion.div>
   );
 }
