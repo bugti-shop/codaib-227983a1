@@ -244,7 +244,6 @@ export const SettingsDialogs = (props: SettingsDialogsProps) => {
                 <button
                   key={theme.id}
                   onClick={() => {
-                    if (theme.id !== 'light' && !props.requireFeature('dark_mode')) return;
                     props.setTheme(theme.id);
                   }}
                   className={cn(

@@ -51,7 +51,6 @@ export const TodoLayout = ({ children, title, searchValue, onSearchChange }: Tod
                 size="icon"
                 variant="ghost"
                 onClick={() => {
-                  if (!isPro) { openPaywall('dark_mode'); return; }
                   toggleDarkMode();
                 }}
                 className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-transparent active:bg-transparent"
