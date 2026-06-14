@@ -360,7 +360,6 @@ const Notes = () => {
                 size="icon"
                 variant="ghost"
                 onClick={() => {
-                  if (!isPro) { openPaywall('dark_mode'); return; }
                   toggleDarkMode();
                 }}
                 className="h-7 w-7 xs:h-8 xs:w-8 sm:h-10 sm:w-10 touch-target"

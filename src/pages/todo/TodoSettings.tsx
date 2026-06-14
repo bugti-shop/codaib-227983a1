@@ -477,7 +477,6 @@ const TodoSettings = () => {
                 <button
                   key={theme.id}
                   onClick={() => {
-                    if (theme.id !== 'light' && !requireFeature('dark_mode')) return;
                     setTheme(theme.id);
                     setShowThemeDialog(false);
                     toast.success(t('settings.themeChanged', { theme: theme.name }));
