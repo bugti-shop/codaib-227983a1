@@ -200,7 +200,7 @@ function usePaywallLogic() {
 
   // Soft-limit info derived from paywallFeature like "soft_limit_notes" / "soft_limit_tasks"
   const SOFT_LIMIT_COUNTS: Record<string, number> = {
-    notes: 2, tasks: 1, noteFolders: 1, taskFolders: 1, taskSections: 1,
+    notes: 30, tasks: 50, noteFolders: 3, taskFolders: 3, taskSections: 3,
   };
   const softLimitKind = paywallFeature?.startsWith('soft_limit_') ? paywallFeature.replace('soft_limit_', '') : null;
   const softLimitMessage = softLimitKind && SOFT_LIMIT_COUNTS[softLimitKind] != null
@@ -281,18 +281,22 @@ function PaywallFooter({ logic }: { logic: ReturnType<typeof usePaywallLogic> })
    VARIANT A — Timeline Feature List (Original)
    ═══════════════════════════════════════════ */
 const COMPARISON_FEATURES: { label: string; free: string | 'x' | 'check'; pro: string | 'check' }[] = [
-  { label: 'Notes', free: '2', pro: 'Unlimited' },
-  { label: 'Tasks', free: '1', pro: 'Unlimited' },
-  { label: 'Sections', free: '2', pro: 'Unlimited' },
-  { label: 'Folders', free: '2', pro: 'Unlimited' },
-  { label: 'Reminders', free: 'Limited', pro: 'Unlimited' },
+  { label: 'Notes', free: '30', pro: 'Unlimited' },
+  { label: 'Tasks', free: '50', pro: 'Unlimited' },
+  { label: 'Folders', free: '3', pro: 'Unlimited' },
+  { label: 'Sections', free: '3', pro: 'Unlimited' },
+  { label: 'Reminders', free: '5', pro: 'Unlimited' },
+  { label: 'Dark Mode', free: 'check', pro: 'check' },
+  { label: 'Find & Replace', free: 'check', pro: 'check' },
   { label: 'View Layouts', free: '1', pro: 'All' },
-  { label: 'Dark Mode', free: 'x', pro: 'check' },
-  { label: 'Customize Everything', free: 'x', pro: 'check' },
-  { label: 'Deadlines', free: 'x', pro: 'check' },
-  { label: 'Widgets', free: 'x', pro: 'check' },
+  { label: 'Widgets', free: '1', pro: 'All' },
   { label: 'App Lock', free: 'x', pro: 'check' },
-  { label: 'Customization', free: 'x', pro: 'check' },
+  { label: 'Bulk Add Tasks', free: 'x', pro: 'check' },
+  { label: 'Group By & Filters', free: 'x', pro: 'check' },
+  { label: 'Deadlines', free: 'x', pro: 'check' },
+  { label: 'Custom Themes', free: 'x', pro: 'check' },
+  { label: 'AI Features', free: 'x', pro: 'check' },
+  { label: 'Version History', free: 'x', pro: 'check' },
 ];
 
 const PRO_BLUE = '#3c78f0';

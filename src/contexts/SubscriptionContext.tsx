@@ -113,11 +113,11 @@ export const FREE_LIMITS = {
 // Free user lifetime limits — applies to ALL free users (not just brand-new).
 // These are LIFETIME counts: deleting items does NOT free up quota. User must upgrade to Pro.
 export const SOFT_FREE_LIMITS = {
-  notes: 2,
-  tasks: 1,
-  noteFolders: 1,
-  taskFolders: 1,
-  taskSections: 1,
+  notes: 30,
+  tasks: 50,
+  noteFolders: 3,
+  taskFolders: 3,
+  taskSections: 3,
 } as const;
 
 export type SoftLimitKind = keyof typeof SOFT_FREE_LIMITS;
